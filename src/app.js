@@ -1,4 +1,5 @@
 import userRoutes from "./Modules/user/user.routes.js";
+import manuscriptRoutes from "./Modules/manuscript/manuscript.routes.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -10,7 +11,7 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: ["http://localhost:3000","https://mpa-admin-pannel.vercel.app"], // frontend URL
+    origin: ["http://localhost:3000","https://mpa-admin-pannel.vercel.app","http://localhost:3001"], // frontend URL
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   }),
@@ -26,6 +27,7 @@ if (process.env.NODE_ENV === "development") {
 
 //Routes
 app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/manuscripts",manuscriptRoutes)
 
 // Default Route
 app.get("/", (req, res) => {
@@ -34,5 +36,16 @@ app.get("/", (req, res) => {
     message: "API is Working Correctly",
   });
 });
+
+app.use((err, req, res, next) => {
+  console.error("GLOBAL ERROR MIDDLEWARE:", err);
+
+  res.status(500).json({
+    success: false,
+    message: err.message,
+    stack: err.stack,
+  });
+});
+
 
 export default app;

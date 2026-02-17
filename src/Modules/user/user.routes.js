@@ -4,8 +4,10 @@ import {
   getAllUsers,
   getMe,
   loginUser,
+  registerUser,
   toggleBlockUser,
   updateUserRole,
+  verifyEmail,
 } from "./user.controller.js";
 import { protect } from "../../Middlewares/auth.middleware.js";
 import { authorizeRoles } from "../../Middlewares/role.middleware.js";
@@ -13,32 +15,29 @@ import { authorizeRoles } from "../../Middlewares/role.middleware.js";
 const router = express.Router();
 
 //Admin Login
-router.post("/login",loginUser)
+router.post("/login", loginUser);
 
 // Only Master Admin Can Access
-router.post(
-  "/create",
-  protect,
-  authorizeRoles("masterAdmin"),
-  createUser
-);
+router.post("/create", protect, authorizeRoles("masterAdmin"), createUser);
 
 router.put(
   "/block/:id",
   protect,
   authorizeRoles("masterAdmin"),
-  toggleBlockUser
+  toggleBlockUser,
 );
 
 router.put(
   "/assign-role/:id",
   protect,
   authorizeRoles("masterAdmin"),
-  updateUserRole
+  updateUserRole,
 );
 
-router.get("/all",protect,authorizeRoles("masterAdmin"),getAllUsers)
-router.get("/me",protect,getMe)
+router.get("/all", protect, authorizeRoles("masterAdmin"), getAllUsers);
+router.get("/me", protect, getMe);
 
+router.post("/register", registerUser);
+router.get("/verify-email/:token", verifyEmail);
 
 export default router;

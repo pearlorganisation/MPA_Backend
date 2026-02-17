@@ -18,8 +18,14 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["masterAdmin", "editor", "reviewer", "researcher"],
-      default: "editor",
+      default: "researcher",
     },
+    isVerified:{
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: String,
+    resetPasswordToken: String,
     isBlocked: {
       type: Boolean,
       default: false,

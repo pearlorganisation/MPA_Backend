@@ -1,6 +1,83 @@
 import User from "./user.model.js";
 import bcrypt from "bcryptjs";
 import generateToken from "../../utils/generateToken.js";
+import crypto from "crypto";
+import sendEmail from "../../utils/sendEmail.js";
+
+//Public registration for Researcher
+export const registerUser = async (req, res) => {
+  try {
+    const { name, email, password, affiliation } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser)
+      return res.status(400).json({ message: "Email already exists" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate Verification Token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      affiliation,
+      role: "researcher", // Default role
+      verificationToken,
+    });
+
+    // Send Email Logic
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+    const message = `<h1>Email Verification</h1>
+                     <p>Please click the link below to verify your account:</p>
+                     <a href="${verificationUrl}">${verificationUrl}</a>`;
+
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Verify your Journal Account",
+        html: message,
+      });
+      res.status(201).json({
+        success: true,
+        message:
+          "Registration successful. Please check your email to verify account.",
+      });
+    } catch (err) {
+      console.log("EMAIL ERROR:", err);
+      user.verificationToken = undefined;
+      await user.save();
+      return res
+        .status(500)
+        .json({ message: "Email could not be sent, but user registered." });
+    }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+//Verify Email
+
+export const verifyEmail = async (req, res) => {
+  try {
+    const user = await User.findOne({ verificationToken: req.params.token });
+
+    if (!user)
+      return res.status(400).json({ message: "Invalid or expired token" });
+
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Email verified successfully. You can now login.",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 // LOGIN
 export const loginUser = async (req, res) => {
