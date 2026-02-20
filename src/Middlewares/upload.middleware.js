@@ -14,14 +14,14 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => ({
     folder: "journal_manuscripts",
-    resource_type: "raw",   
+    resource_type: "raw",
   }),
 });
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = [
     "application/pdf",
-    "application/msword", 
+    "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "image/jpeg",
     "image/png",
@@ -30,7 +30,10 @@ const fileFilter = (req, file, cb) => {
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Invalid file type. Only PDF, DOC, DOCX, JPG, PNG allowed!"), false);
+    cb(
+      new Error("Invalid file type. Only PDF, DOC, DOCX, JPG, PNG allowed!"),
+      false,
+    );
   }
 };
 
@@ -38,7 +41,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024,
+    fileSize: 50 * 1024 * 1024, // 50MB
   },
 });
 
