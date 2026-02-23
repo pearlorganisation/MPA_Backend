@@ -13,11 +13,11 @@ router.post("/submit", protect, upload.fields([
 
 router.get("/my-submissions", protect, getMySubmissions);
 
-router.get("/admin/all", protect, authorizeRoles("Admin"), getAllSubmissions);
+router.get("/admin/all", protect, authorizeRoles("masterAdmin"),getAllSubmissions);
 
-router.put("/admin/assign-editor", protect, authorizeRoles("Admin") , assignEditor);
+router.put("/admin/assign-editor", protect, authorizeRoles("masterAdmin"),assignEditor);
 
-router.put("/admin/update-status", protect, authorizeRoles("Admin"), updateSubmissionStatus);
+router.put("/admin/update-status", protect, authorizeRoles("masterAdmin"),updateSubmissionStatus);
 
 
 export default router;

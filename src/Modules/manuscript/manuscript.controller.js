@@ -60,13 +60,22 @@ export const getMySubmissions = async (req, res) => {
 
 export const getAllSubmissions = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const total = await Manuscript.countDocuments();
     const submissions = await Manuscript.find()
       .populate("submittedBy", "name email")
       .populate("assignedEditor", "name email")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     res.status(200).json({
       success: true,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
       count: submissions.length,
       submissions,
     });
