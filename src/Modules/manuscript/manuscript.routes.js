@@ -7,8 +7,11 @@ import { authorizeRoles } from "../../Middlewares/role.middleware.js";
 const router = express.Router();
 
 router.post("/submit", protect, upload.fields([
-    { name: 'manuscriptFile', maxCount: 1 },
-    { name: 'coverLetter', maxCount: 1 }
+     { name: 'manuscriptFile', maxCount: 1 },
+  { name: 'coverLetter', maxCount: 1 },
+  { name: 'figures', maxCount: 1 },
+  { name: 'tables', maxCount: 1 },
+  { name: 'ethicalDeclaration', maxCount: 1 }
 ]), submitManuscript);
 
 router.get("/my-submissions", protect, getMySubmissions);

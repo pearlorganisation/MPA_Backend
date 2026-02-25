@@ -32,10 +32,11 @@ export const submitManuscript = async (req, res) => {
       authors: JSON.parse(authors),
       submittedBy: req.user._id,
       files: {
-        manuscriptFile: req.files.manuscriptFile[0].path,
-        coverLetter: req.files.coverLetter
-          ? req.files.coverLetter[0].path
-          : null,
+        manuscriptFile: req.files?.manuscriptFile ? req.files.manuscriptFile[0].path : null,
+        ethicalDeclaration: req.files?.ethicalDeclaration ? req.files.ethicalDeclaration[0].path : null,
+        tables: req.files?.tables ? req.files.tables[0].path : null,
+        figures: req.files?.figures ? req.files.figures[0].path : null,
+        coverLetter: req.files?.coverLetter ? req.files.coverLetter[0].path : null,
       },
     });
 
