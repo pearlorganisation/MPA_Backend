@@ -121,47 +121,41 @@ export const assignEditor = async (req, res) => {
 
 export const updateSubmissionStatus = async (req, res) => {
   try {
-    const { manuscriptId, status } = req.body;
+    const { manuscriptId, status, feedback } = req.body;
 
-    const allowedStatuses = [
-      "Submitted",
-      "Editor Assigned",
-      "Under Review",
-      "Revision Required",
-      "Accepted",
-      "Rejected",
-      "Published",
-    ];
+    const manuscript = await Manuscript.findById(manuscriptId);
+    if (!manuscript) return res.status(404).json({ success: false, message: "Not found" });
 
-    if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid status value",
-      });
+    manuscript.status = status;
+
+    //If Rejected then save the feed back
+    if (status === "Rejected" && feedback) {
+      manuscript.rejectionFeedback = feedback;
     }
+
+    await manuscript.save();
+    res.status(200).json({ success: true, message: `Status updated to ${status}`, manuscript });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+//Assign Review  By Admin
+export const assignReviewers = async (req, res) => {
+  try {
+    const { manuscriptId, reviewerIds } = req.body; // array of IDs
 
     const manuscript = await Manuscript.findByIdAndUpdate(
       manuscriptId,
-      { status },
-      { new: true },
+      { 
+        assignedReviewers: reviewerIds,
+        status: "Under Review" 
+      },
+      { new: true }
     );
 
-    if (!manuscript) {
-      return res.status(404).json({
-        success: false,
-        message: "Manuscript not found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Status Updated",
-      manuscript,
-    });
+    res.status(200).json({ success: true, message: "Reviewers Assigned", manuscript });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

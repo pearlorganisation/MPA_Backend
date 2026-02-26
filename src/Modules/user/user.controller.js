@@ -224,3 +224,39 @@ export const getAllUsers = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+//Get All Editor
+export const getAllEditors = async (req, res) => {
+  try {
+    const editors = await User.find({ role: "editor" }).select("-password");
+    res.status(200)
+      .json({
+        success: true,
+        count: editors.length,
+        data: editors,
+      })
+  }
+  catch (error) {
+    res.status(500).json({
+      message: error.message
+    })
+  }
+}
+
+//Get All Reviewer
+export const getAllReviewers = async (req, res) => {
+  try {
+    const reviewer = await User.find({ role: "reviewer" }).select("-password");
+    res.status(200).json({
+      success: true,
+      count: reviewer.length,
+      data:reviewer,
+    })
+  }
+  catch (error) {
+    return res.status(500)
+      .json({
+        message: error.message
+      })
+  }
+}
