@@ -23,6 +23,7 @@ const createAdmin = async () => {
       email: "admin@gmail.com",
       password: hashedPassword,
       role: "masterAdmin",
+      isVerified: true,
     });
 
     console.log("Master Admin Created ✅");

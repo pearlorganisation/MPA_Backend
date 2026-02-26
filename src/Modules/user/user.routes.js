@@ -1,6 +1,8 @@
 import express from "express";
 import {
   createUser,
+  getAllEditors,
+  getAllReviewers,
   getAllUsers,
   getMe,
   loginUser,
@@ -18,7 +20,13 @@ const router = express.Router();
 router.post("/login", loginUser);
 
 // Only Master Admin Can Access
-router.post("/create", protect, authorizeRoles("masterAdmin"), createUser);
+router.post("/create", protect, authorizeRoles("masterAdmin"),createUser);
+
+//Get All Editor
+router.get("/editors", protect, authorizeRoles("masterAdmin"),getAllEditors);
+
+//Get All Reviewer
+router.get("/reviewers", protect, authorizeRoles("masterAdmin"),getAllReviewers);
 
 router.put(
   "/block/:id",

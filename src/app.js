@@ -33,7 +33,7 @@ if (process.env.NODE_ENV === "development") {
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/manuscripts", manuscriptRoutes);
 
-// Default Route
+// Default Routes
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,

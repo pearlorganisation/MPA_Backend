@@ -6,13 +6,15 @@ const manuscriptSchema = new mongoose.Schema(
     submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     title: { type: String, required: true },
     abstract: { type: String, required: true },
-    keywords: [String],
+    keywords: [String,],
     authors: [{ name: String, email: String, affiliation: String }],
 
     files: {
       manuscriptFile: String,
       coverLetter: String,
       ethicalDeclaration: String,
+      figures: String,
+      tables: String,
     },
 
     status: {
@@ -28,12 +30,20 @@ const manuscriptSchema = new mongoose.Schema(
       ],
       default: "Submitted",
     },
-
     assignedEditor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
     },
+
+    assignedReviewers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    }],
+    rejectionFeedback: {
+      type: String,
+      default: ""
+    }
   },
   { timestamps: true },
 );
