@@ -15,7 +15,6 @@ app.use(
       "http://localhost:3000",
       "https://mpa-admin-pannel.vercel.app",
       "http://localhost:3001",
-      "https://mpa-frontend-dun.vercel.app"
     ], // frontend URL
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
@@ -34,7 +33,7 @@ if (process.env.NODE_ENV === "development") {
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/manuscripts", manuscriptRoutes);
 
-// Default Route
+// Default Routes
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
