@@ -14,7 +14,7 @@ import { authorizeRoles } from "../../Middlewares/role.middleware.js";
 
 const router = express.Router();
 
-//Admin Login
+//Admin Login route
 router.post("/login", loginUser);
 
 // Only Master Admin Can Access
