@@ -1,4 +1,5 @@
 import express from "express";
+import jwt from "jsonwebtoken";
 import {
   createUser,
   getAllEditors,
@@ -13,6 +14,7 @@ import {
 } from "./user.controller.js";
 import { protect } from "../../Middlewares/auth.middleware.js";
 import { authorizeRoles } from "../../Middlewares/role.middleware.js";
+import passport from "passport";
 
 const router = express.Router();
 
@@ -47,5 +49,25 @@ router.get("/me", protect, getMe);
 
 router.post("/register", registerUser);
 router.get("/verify-email/:token", verifyEmail);
+
+//google auth routes
+
+router.get(
+  "/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+)
+
+
+router.get(
+  "/google/callback",
+  passport.authenticate("google", { session: false }),
+  (req, res) => {
+    const token = jwt.sign(req.user, process.env.JWT_SECRET)
+
+    // Redirect to frontend with token
+    res.redirect(`${process.env.FRONTEND_URL}/login-success?token=${token}`)
+  }
+)
+
 
 export default router;
