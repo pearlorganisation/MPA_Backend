@@ -15,6 +15,7 @@ app.use(
       "http://localhost:3000",
       "https://mpa-admin-pannel.vercel.app",
       "http://localhost:3001",
+      "https://mpa-frontend-dun.vercel.app",
     ], // frontend URL
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,

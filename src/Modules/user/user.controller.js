@@ -136,6 +136,7 @@ export const createUser = async (req, res) => {
       email,
       password: hashedPassword,
       role,
+      isVerified: true,
     });
 
     res.status(201).json({
@@ -250,7 +251,7 @@ export const getAllReviewers = async (req, res) => {
     res.status(200).json({
       success: true,
       count: reviewer.length,
-      data:reviewer,
+      data: reviewer,
     })
   }
   catch (error) {
