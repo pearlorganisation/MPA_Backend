@@ -1,3 +1,4 @@
+import sendEmail from "../../utils/sendEmail.js";
 import Manuscript from "./manuscript.model.js";
 
 export const submitManuscript = async (req, res) => {
@@ -123,23 +124,67 @@ export const updateSubmissionStatus = async (req, res) => {
   try {
     const { manuscriptId, status, feedback } = req.body;
 
-    const manuscript = await Manuscript.findById(manuscriptId);
-    if (!manuscript) return res.status(404).json({ success: false, message: "Not found" });
+    //  researcher info bhi fetch karenge
+    const manuscript = await Manuscript.findById(manuscriptId)
+      .populate("submittedBy", "name email");
 
+    if (!manuscript) {
+      return res.status(404).json({
+        success: false,
+        message: "Not found",
+      });
+    }
+
+    // update status
     manuscript.status = status;
 
-    //If Rejected then save the feed back
     if (status === "Rejected" && feedback) {
       manuscript.rejectionFeedback = feedback;
     }
 
     await manuscript.save();
-    res.status(200).json({ success: true, message: `Status updated to ${status}`, manuscript });
+
+    //  EMAIL SEND WHEN REJECTED
+    if (status === "Rejected") {
+      const researcher = manuscript.submittedBy;
+
+      const message = `
+        <h2>Manuscript Rejected</h2>
+
+        <p>Dear ${researcher.name},</p>
+
+        <p>Your manuscript <b>${manuscript.manuscriptId}</b>
+        has been rejected after editorial review.</p>
+
+        <h3>Feedback:</h3>
+        <p>${feedback || "No feedback provided."}</p>
+
+        <br/>
+        <p>Thank you for submitting to our journal.</p>
+        <p><b>Editorial Team</b></p>
+      `;
+
+      await sendEmail({
+        email: researcher.email,
+        subject: "Manuscript Rejection Notification",
+        html: message,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Status updated to ${status}`,
+      manuscript,
+    });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("STATUS UPDATE ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
-
 //Assign Review  By Admin
 export const assignReviewers = async (req, res) => {
   try {
@@ -147,9 +192,9 @@ export const assignReviewers = async (req, res) => {
 
     const manuscript = await Manuscript.findByIdAndUpdate(
       manuscriptId,
-      { 
+      {
         assignedReviewers: reviewerIds,
-        status: "Under Review" 
+        status: "Under Review"
       },
       { new: true }
     );
@@ -157,5 +202,27 @@ export const assignReviewers = async (req, res) => {
     res.status(200).json({ success: true, message: "Reviewers Assigned", manuscript });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get manuscripts assigned to logged-in editor
+export const getAssignedToEditor = async (req, res) => {
+  try {
+    const manuscripts = await Manuscript.find({
+      assignedEditor: req.user._id,
+    })
+      .populate("submittedBy", "name email")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: manuscripts.length,
+      manuscripts,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
