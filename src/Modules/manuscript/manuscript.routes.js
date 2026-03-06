@@ -20,10 +20,10 @@ router.get("/admin/all", protect, authorizeRoles("masterAdmin"), getAllSubmissio
 
 router.put("/admin/assign-editor", protect, authorizeRoles("masterAdmin"), assignEditor);
 
-router.put("/admin/update-status", protect, authorizeRoles("masterAdmin"), updateSubmissionStatus);
+router.put("/admin/update-status", protect, authorizeRoles("masterAdmin","editor"), updateSubmissionStatus);
 
 //assign reviewer route
-router.put("/admin/assign-reviewers", protect, authorizeRoles("masterAdmin"), assignReviewers)
+router.put("/admin/assign-reviewers", protect, authorizeRoles("masterAdmin","editor"), assignReviewers)
 
 //Get the Manuscript assign by admin to editor
 router.get(

@@ -33,7 +33,7 @@ router.post("/create", protect, authorizeRoles("masterAdmin"),createUser);
 router.get("/editors", protect, authorizeRoles("masterAdmin"),getAllEditors);
 
 //Get All Reviewer
-router.get("/reviewers", protect, authorizeRoles("masterAdmin"),getAllReviewers);
+router.get("/reviewers", protect, authorizeRoles("masterAdmin","editor"),getAllReviewers);
 
 router.put(
   "/block/:id",
