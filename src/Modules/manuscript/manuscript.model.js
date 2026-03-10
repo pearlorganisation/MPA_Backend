@@ -13,6 +13,7 @@ const manuscriptSchema = new mongoose.Schema(
       manuscriptFile: String,
       coverLetter: String,
       ethicalDeclaration: String,
+      aiReport: String,
       figures: String,
       tables: String,
     },
@@ -43,6 +44,14 @@ const manuscriptSchema = new mongoose.Schema(
     rejectionFeedback: {
       type: String,
       default: ""
+    },
+    revisionFeedback: {
+      type: String,
+      default: ""
+    },
+    isRevised: {
+      type: Boolean,
+      default: false
     }
   },
   { timestamps: true },

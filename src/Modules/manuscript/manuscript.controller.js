@@ -3,8 +3,8 @@ import Manuscript from "./manuscript.model.js";
 
 export const submitManuscript = async (req, res) => {
   try {
-    console.log("BODY:", req.body);
-    console.log("FILES:", req.files);
+    // console.log("BODY:", req.body);
+    // console.log("FILES:", req.files);
 
     if (!req.files?.manuscriptFile) {
       return res.status(400).json({
@@ -35,6 +35,7 @@ export const submitManuscript = async (req, res) => {
       files: {
         manuscriptFile: req.files?.manuscriptFile ? req.files.manuscriptFile[0].path : null,
         ethicalDeclaration: req.files?.ethicalDeclaration ? req.files.ethicalDeclaration[0].path : null,
+        aiReport: req.files?.aiReport ? req.files.aiReport[0].path : null,
         tables: req.files?.tables ? req.files.tables[0].path : null,
         figures: req.files?.figures ? req.files.figures[0].path : null,
         coverLetter: req.files?.coverLetter ? req.files.coverLetter[0].path : null,
@@ -124,65 +125,66 @@ export const updateSubmissionStatus = async (req, res) => {
   try {
     const { manuscriptId, status, feedback } = req.body;
 
-    //  researcher info bhi fetch karenge
     const manuscript = await Manuscript.findById(manuscriptId)
       .populate("submittedBy", "name email");
 
     if (!manuscript) {
-      return res.status(404).json({
-        success: false,
-        message: "Not found",
-      });
+      return res.status(404).json({ success: false, message: "Not found" });
     }
 
-    // update status
     manuscript.status = status;
 
     if (status === "Rejected" && feedback) {
       manuscript.rejectionFeedback = feedback;
     }
 
-    await manuscript.save();
-
-    //  EMAIL SEND WHEN REJECTED
-    if (status === "Rejected") {
-      const researcher = manuscript.submittedBy;
-
-      const message = `
-        <h2>Manuscript Rejected</h2>
-
-        <p>Dear ${researcher.name},</p>
-
-        <p>Your manuscript <b>${manuscript.manuscriptId}</b>
-        has been rejected after editorial review.</p>
-
-        <h3>Feedback:</h3>
-        <p>${feedback || "No feedback provided."}</p>
-
-        <br/>
-        <p>Thank you for submitting to our journal.</p>
-        <p><b>Editorial Team</b></p>
-      `;
-
-      await sendEmail({
-        email: researcher.email,
-        subject: "Manuscript Rejection Notification",
-        html: message,
-      });
+    // Revision Required ka logic
+    if (status === "Revision Required" && feedback) {
+      manuscript.revisionFeedback = feedback;
+      manuscript.isRevised = false; // reset because new revision requested
     }
 
-    res.status(200).json({
-      success: true,
-      message: `Status updated to ${status}`,
-      manuscript,
-    });
+    await manuscript.save();
+
+    // EMAIL SEND WHEN REJECTED
+    if (status === "Rejected") {
+      const researcher = manuscript.submittedBy;
+      const message = `
+        <h2>Manuscript Rejected</h2>
+        <p>Dear ${researcher.name},</p>
+        <p>Your manuscript <b>${manuscript.manuscriptId}</b> has been rejected after editorial review.</p>
+        <h3>Feedback:</h3>
+        <p>${feedback || "No feedback provided."}</p>
+        <br/><p>Thank you for submitting to our journal.</p><p><b>Editorial Team</b></p>
+      `;
+      await sendEmail({ email: researcher.email, subject: "Manuscript Rejection Notification", html: message });
+    }
+
+    // EMAIL SEND WHEN REVISION REQUIRED
+    if (status === "Revision Required") {
+      const researcher = manuscript.submittedBy;
+      const revisionUrl = `${process.env.FRONTEND_URL}/revise-manuscript/${manuscript._id}`;
+
+      const message = `
+        <h2>Action Required: Revisions for your Manuscript</h2>
+        <p>Dear ${researcher.name},</p>
+        <p>The editorial team has reviewed your manuscript <b>${manuscript.manuscriptId}</b> and requested some modifications.</p>
+        <div style="background-color: #f3f4f6; padding: 15px; border-left: 4px solid #F97316; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #C2410C;">Editorial Feedback / Required Changes:</h3>
+          <p style="white-space: pre-wrap;">${feedback}</p>
+        </div>
+        <p>You <b>do not</b> need to fill the entire form again. Click the link below to upload the specific files requested.</p>
+        <a href="${revisionUrl}" style="display: inline-block; padding: 10px 20px; background-color: #F97316; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Revise Manuscript Now</a>
+        <br/><br/><p>Thank you,</p><p><b>Editorial Team</b></p>
+      `;
+      await sendEmail({ email: researcher.email, subject: `Revision Required: ${manuscript.manuscriptId}`, html: message });
+    }
+
+    res.status(200).json({ success: true, message: `Status updated to ${status}`, manuscript });
 
   } catch (error) {
     console.error("STATUS UPDATE ERROR:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 //Assign Review  By Admin
@@ -224,5 +226,56 @@ export const getAssignedToEditor = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+// Get single manuscript by ID for revision
+export const getManuscriptById = async (req, res) => {
+  try {
+    const manuscript = await Manuscript.findById(req.params.id);
+    if (!manuscript) return res.status(404).json({ success: false, message: "Manuscript not found" });
+
+    // Security: Only owner or admin can view
+    if (manuscript.submittedBy.toString() !== req.user._id.toString() && req.user.role === 'researcher') {
+      return res.status(403).json({ success: false, message: "Not authorized" });
+    }
+
+    res.status(200).json({ success: true, manuscript });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Submit the revised specific files
+export const reviseManuscript = async (req, res) => {
+  try {
+    const manuscript = await Manuscript.findById(req.params.id);
+    if (!manuscript) return res.status(404).json({ success: false, message: "Manuscript not found" });
+
+    // Ensure only the author can revise
+    if (manuscript.submittedBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Not authorized to edit" });
+    }
+
+    // Update specific files if they are uploaded 
+    if (req.files) {
+      if (req.files.manuscriptFile) manuscript.files.manuscriptFile = req.files.manuscriptFile[0].path;
+      if (req.files.coverLetter) manuscript.files.coverLetter = req.files.coverLetter[0].path;
+      if (req.files.ethicalDeclaration) manuscript.files.ethicalDeclaration = req.files.ethicalDeclaration[0].path;
+      if (req.files.aiReport) manuscript.files.aiReport = req.files.aiReport[0].path;
+      if (req.files.figures) manuscript.files.figures = req.files.figures[0].path;
+      if (req.files.tables) manuscript.files.tables = req.files.tables[0].path;
+    }
+
+    // Change status back to "Submitted" so it goes back to admin, and set isRevised to true
+    manuscript.status = "Submitted";
+    manuscript.isRevised = true;
+
+    await manuscript.save();
+
+    res.status(200).json({ success: true, message: "Revision submitted successfully", manuscript });
+  } catch (error) {
+    console.error("REVISION ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
