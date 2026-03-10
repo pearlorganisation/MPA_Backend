@@ -1,19 +1,26 @@
 import nodemailer from "nodemailer";
 
 const sendEmail = async (options) => {
+  // LOG 1: Check karein ki function call ho bhi raha hai ya nahi
+  console.log("====== EMAIL FUNCTION STARTED ======");
+  console.log("Sending email to:", options.email);
+
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 465, 
-      secure: true, 
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, 
+        pass: process.env.EMAIL_PASS,
       },
     });
 
+    // LOG 2: Transporter ban gaya
+    console.log("Transporter created successfully. Trying to send...");
+
     const mailOptions = {
-      from: `"Journal Portal" <${process.env.EMAIL_USER}>`, 
+      from: `"Journal Portal" <${process.env.EMAIL_USER}>`,
       to: options.email,
       subject: options.subject,
       text: options.message,
@@ -21,12 +28,16 @@ const sendEmail = async (options) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent successfully! Message ID: ", info.messageId); // Success log
     
+    // LOG 3: Agar success hua toh ye dikhega
+    console.log("====== EMAIL SENT SUCCESSFULLY! ======");
+    console.log("Message ID:", info.messageId);
+
   } catch (error) {
-   
-    console.error("EMAIL SENDING FAILED: ", error.message); 
-    console.error("FULL ERROR DETAILS: ", error);
+    // LOG 4: Agar error aayi toh ye dikhega
+    console.error("====== EMAIL FAILED! ======");
+    console.error(error.message);
+    console.error(error);
   }
 };
 
