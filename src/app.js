@@ -1,3 +1,4 @@
+//app.js
 import userRoutes from "./Modules/user/user.routes.js";
 import manuscriptRoutes from "./Modules/manuscript/manuscript.routes.js";
 import editorialRoutes from "./Modules/website/editorial/editorial.routes.js";
