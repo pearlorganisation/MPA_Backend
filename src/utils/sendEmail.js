@@ -1,23 +1,64 @@
+// import nodemailer from "nodemailer";
+
+// const sendEmail = async (options) => {
+//   const transporter = nodemailer.createTransport({
+//     service: "Gmail", 
+//     auth: {
+//       user: process.env.EMAIL_USER,
+//       pass: process.env.EMAIL_PASS,
+//     },
+//   });
+
+//   const mailOptions = {
+//     from: "Journal Portal <no-reply@journal.com>",
+//     to: options.email,
+//     subject: options.subject,
+//     text: options.message,
+//     html: options.html,
+//   };
+
+//   await transporter.sendMail(mailOptions);
+// };
+
+// export default sendEmail;
+
+
+
+
+
+
+
+
+
+
+
+
+
 import nodemailer from "nodemailer";
 
 const sendEmail = async (options) => {
-  // LOG 1: Check karein ki function call ho bhi raha hai ya nahi
   console.log("====== EMAIL FUNCTION STARTED ======");
   console.log("Sending email to:", options.email);
 
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 465,
-      secure: true,
+      port: 465,            // Port 465 hi chalne dete hain
+      secure: true,         // 465 ke liye secure "true" hona chahiye
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        pass: process.env.EMAIL_PASS, // Dhyan rahe, ye 16-digit App Password ho
       },
+      // 👇 RENDER FIX 1: Zabardasti IPv4 use karne ke liye (ENETUNREACH error solve karega)
+      family: 4, 
+      
+      // 👇 RENDER FIX 2: SSL Certificate validation bypass (Network error bachane ke liye)
+      tls: {
+        rejectUnauthorized: false
+      }
     });
 
-    // LOG 2: Transporter ban gaya
-    console.log("Transporter created successfully. Trying to send...");
+    console.log("Transporter ready. Forcefully using IPv4. Sending now...");
 
     const mailOptions = {
       from: `"Journal Portal" <${process.env.EMAIL_USER}>`,
@@ -29,15 +70,13 @@ const sendEmail = async (options) => {
 
     const info = await transporter.sendMail(mailOptions);
     
-    // LOG 3: Agar success hua toh ye dikhega
-    console.log("====== EMAIL SENT SUCCESSFULLY! ======");
+    console.log("✅ ====== EMAIL SENT SUCCESSFULLY! ======");
     console.log("Message ID:", info.messageId);
 
   } catch (error) {
-    // LOG 4: Agar error aayi toh ye dikhega
-    console.error("====== EMAIL FAILED! ======");
-    console.error(error.message);
-    console.error(error);
+    console.error("❌ ====== EMAIL FAILED! ======");
+    console.error("Error Message:", error.message);
+    throw error; // Isko throw karna mat bhulna, warna Controller ko lagega mail chala gaya
   }
 };
 
