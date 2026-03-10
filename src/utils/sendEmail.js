@@ -29,11 +29,9 @@
 
 
 
-
 import nodemailer from "nodemailer";
-import dns from "dns"; // 👈 NAYA IMPORT: Node.js ka internal DNS module
+import dns from "dns";
 
-// 👇 SABSE BADI FIX: Node.js ko globally force karna ki wo strictly IPv4 use kare (Render IPv6 issue bypass)
 dns.setDefaultResultOrder("ipv4first");
 
 const sendEmail = async (options) => {
@@ -41,20 +39,26 @@ const sendEmail = async (options) => {
   console.log("Sending email to:", options.email);
 
   try {
+
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 465,            
-      secure: true,         
+      port: 587,
+      secure: false, // TLS
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // 16-digit App Password hona zaroori hai
+        pass: process.env.EMAIL_PASS,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
       tls: {
-        rejectUnauthorized: false // SSL/TLS bypass network error ke liye
+        rejectUnauthorized: false
       }
     });
 
-    console.log("Transporter ready. Forcefully using DNS IPv4. Sending now...");
+    // SMTP connection test
+    await transporter.verify();
+    console.log("✅ SMTP Connection Successful");
 
     const mailOptions = {
       from: `"Journal Portal" <${process.env.EMAIL_USER}>`,
@@ -65,13 +69,11 @@ const sendEmail = async (options) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    
-    console.log("✅ ====== EMAIL SENT SUCCESSFULLY! ======");
-    console.log("Message ID:", info.messageId);
+
+    console.log("✅ EMAIL SENT:", info.messageId);
 
   } catch (error) {
-    console.error("❌ ====== EMAIL FAILED! ======");
-    console.error("Error Message:", error.message);
+    console.error("❌ EMAIL FAILED:", error);
     throw error;
   }
 };
