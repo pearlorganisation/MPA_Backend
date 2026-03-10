@@ -30,11 +30,11 @@
 
 
 
-
-
-
-
 import nodemailer from "nodemailer";
+import dns from "dns"; // 👈 NAYA IMPORT: Node.js ka internal DNS module
+
+// 👇 SABSE BADI FIX: Node.js ko globally force karna ki wo strictly IPv4 use kare (Render IPv6 issue bypass)
+dns.setDefaultResultOrder("ipv4first");
 
 const sendEmail = async (options) => {
   console.log("====== EMAIL FUNCTION STARTED ======");
@@ -43,22 +43,18 @@ const sendEmail = async (options) => {
   try {
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 465,            // Port 465 hi chalne dete hain
-      secure: true,         // 465 ke liye secure "true" hona chahiye
+      port: 465,            
+      secure: true,         
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // Dhyan rahe, ye 16-digit App Password ho
+        pass: process.env.EMAIL_PASS, // 16-digit App Password hona zaroori hai
       },
-      // 👇 RENDER FIX 1: Zabardasti IPv4 use karne ke liye (ENETUNREACH error solve karega)
-      family: 4, 
-      
-      // 👇 RENDER FIX 2: SSL Certificate validation bypass (Network error bachane ke liye)
       tls: {
-        rejectUnauthorized: false
+        rejectUnauthorized: false // SSL/TLS bypass network error ke liye
       }
     });
 
-    console.log("Transporter ready. Forcefully using IPv4. Sending now...");
+    console.log("Transporter ready. Forcefully using DNS IPv4. Sending now...");
 
     const mailOptions = {
       from: `"Journal Portal" <${process.env.EMAIL_USER}>`,
@@ -76,7 +72,7 @@ const sendEmail = async (options) => {
   } catch (error) {
     console.error("❌ ====== EMAIL FAILED! ======");
     console.error("Error Message:", error.message);
-    throw error; // Isko throw karna mat bhulna, warna Controller ko lagega mail chala gaya
+    throw error;
   }
 };
 
