@@ -157,7 +157,11 @@ export const updateSubmissionStatus = async (req, res) => {
         <p>${feedback || "No feedback provided."}</p>
         <br/><p>Thank you for submitting to our journal.</p><p><b>Editorial Team</b></p>
       `;
-      await sendEmail({ email: researcher.email, subject: "Manuscript Rejection Notification", html: message });
+      sendEmail({
+        email: researcher.email,
+        subject: "Manuscript Rejection Notification",
+        html: message
+      }).catch(err => console.error("Email error:", err));
     }
 
     // EMAIL SEND WHEN REVISION REQUIRED
