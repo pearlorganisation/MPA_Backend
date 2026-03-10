@@ -3,14 +3,18 @@ import nodemailer from "nodemailer";
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 587,
-  secure: false, // important
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  tls: {
+    rejectUnauthorized: false
+  }
 });
 
 const sendEmail = async (options) => {
+
   console.log("Sending email to:", options.email);
 
   const mailOptions = {
@@ -20,7 +24,9 @@ const sendEmail = async (options) => {
     html: options.html,
   };
 
-  await transporter.sendMail(mailOptions);
+  const info = await transporter.sendMail(mailOptions);
+
+  console.log("Email sent:", info.messageId);
 };
 
 export default sendEmail;
