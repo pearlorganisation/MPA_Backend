@@ -157,7 +157,7 @@ export const updateSubmissionStatus = async (req, res) => {
         <p>${feedback || "No feedback provided."}</p>
         <br/><p>Thank you for submitting to our journal.</p><p><b>Editorial Team</b></p>
       `;
-      await sendEmail({ email: researcher.email, subject: "Manuscript Rejection Notification", html: message });
+      sendEmail({ email: researcher.email, subject: "Manuscript Rejection Notification", html: message });
     }
 
     // EMAIL SEND WHEN REVISION REQUIRED
@@ -177,7 +177,7 @@ export const updateSubmissionStatus = async (req, res) => {
         <a href="${revisionUrl}" style="display: inline-block; padding: 10px 20px; background-color: #F97316; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Revise Manuscript Now</a>
         <br/><br/><p>Thank you,</p><p><b>Editorial Team</b></p>
       `;
-      await sendEmail({ email: researcher.email, subject: `Revision Required: ${manuscript.manuscriptId}`, html: message });
+       sendEmail({ email: researcher.email, subject: `Revision Required: ${manuscript.manuscriptId}`, html: message });
     }
 
     res.status(200).json({ success: true, message: `Status updated to ${status}`, manuscript });
