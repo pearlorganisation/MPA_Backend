@@ -49,6 +49,10 @@ const manuscriptSchema = new mongoose.Schema(
       type: String,
       default: ""
     },
+    feedbackFile: {
+      type: String,
+      default: "",
+    },
     isRevised: {
       type: Boolean,
       default: false

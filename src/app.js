@@ -2,6 +2,7 @@
 import userRoutes from "./Modules/user/user.routes.js";
 import manuscriptRoutes from "./Modules/manuscript/manuscript.routes.js";
 import editorialRoutes from "./Modules/website/editorial/editorial.routes.js";
+import reviewRoutes from "./Modules/review/review.routes.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -36,6 +37,7 @@ if (process.env.NODE_ENV === "development") {
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/manuscripts", manuscriptRoutes);
 app.use("/api/v1/website/editorial", editorialRoutes);
+app.use("/api/v1/reviews", reviewRoutes);
 
 // Default Routes
 app.get("/", (req, res) => {

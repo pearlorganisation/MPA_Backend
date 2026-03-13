@@ -21,8 +21,13 @@ router.get("/admin/all", protect, authorizeRoles("masterAdmin"), getAllSubmissio
 
 router.put("/admin/assign-editor", protect, authorizeRoles("masterAdmin"), assignEditor);
 
-router.put("/admin/update-status", protect, authorizeRoles("masterAdmin", "editor"), updateSubmissionStatus);
-
+router.put(
+  "/admin/update-status",
+  protect,
+  authorizeRoles("masterAdmin", "editor"),
+  upload.single("feedbackFile"),
+  updateSubmissionStatus
+);
 //assign reviewer route
 router.put("/admin/assign-reviewers", protect, authorizeRoles("masterAdmin", "editor"), assignReviewers)
 
@@ -43,6 +48,5 @@ router.put("/revise/:id", protect, upload.fields([
   { name: 'figures', maxCount: 1 },
   { name: 'tables', maxCount: 1 },
   { name: 'ethicalDeclaration', maxCount: 1 },
-  { name: 'ethicalDeclaration', maxCount: 1 }
 ]), reviseManuscript);
 export default router;
