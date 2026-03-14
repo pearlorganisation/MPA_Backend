@@ -15,14 +15,13 @@ const reviewSchema = new mongoose.Schema(
     invitationStatus: {
       type: String,
       enum: ["Pending", "Accepted", "Declined"],
-      default: "Pending", // Default pending rahega jab editor assign karega
+      default: "Pending", 
     },
     reviewStatus: {
       type: String,
       enum: ["Pending", "Completed"],
-      default: "Pending", // Form submit hone ke baad Completed hoga
+      default: "Pending", 
     },
-    // Structured Review Form Data
     scores: {
       originality: { type: Number, min: 1, max: 5 },
       clarity: { type: Number, min: 1, max: 5 },
@@ -30,8 +29,8 @@ const reviewSchema = new mongoose.Schema(
       contribution: { type: Number, min: 1, max: 5 },
     },
     commentsToAuthor: { type: String, default: "" },
-    commentsToEditor: { type: String, default: "" }, // Confidential
-    annotatedFile: { type: String, default: null }, // Agar reviewer PDF me mistakes mark karke upload kare
+    commentsToEditor: { type: String, default: "" }, 
+    annotatedFile: { type: String, default: null }, 
     recommendation: {
       type: String,
       enum: ["Accept", "Minor revisions", "Major revisions", "Reject", null],

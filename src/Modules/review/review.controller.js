@@ -73,75 +73,45 @@ export const submitReview = async (req, res) => {
 // Admin can see all review tracking
 export const getAllReviewTracking = async (req, res) => {
   try {
-
     const reviews = await Review.aggregate([
-      {
-        $lookup: {
-          from: "manuscripts",
-          localField: "manuscriptId",
-          foreignField: "_id",
-          as: "manuscript"
-        }
-      },
-      {
-        $unwind: "$manuscript"
-      },
-
-      {
-        $lookup: {
-          from: "users",
-          localField: "reviewerId",
-          foreignField: "_id",
-          as: "reviewer"
-        }
-      },
-      {
-        $unwind: "$reviewer"
-      },
-
+      { $lookup: { from: "manuscripts", localField: "manuscriptId", foreignField: "_id", as: "manuscript" } },
+      { $unwind: "$manuscript" },
+      { $lookup: { from: "users", localField: "reviewerId", foreignField: "_id", as: "reviewer" } },
+      { $unwind: "$reviewer" },
       {
         $group: {
           _id: "$manuscriptId",
-
           manuscript: {
             $first: {
+              _id: "$manuscript._id",
               manuscriptId: "$manuscript.manuscriptId",
               title: "$manuscript.title",
               status: "$manuscript.status"
             }
           },
-
           reviewers: {
             $push: {
+              reviewId: "$_id",
               reviewerId: "$reviewer._id",
               name: "$reviewer.name",
               email: "$reviewer.email",
               invitationStatus: "$invitationStatus",
               reviewStatus: "$reviewStatus",
-              recommendation: "$recommendation"
+              recommendation: "$recommendation",
+              scores: "$scores",
+              commentsToAuthor: "$commentsToAuthor",
+              commentsToEditor: "$commentsToEditor",
+              annotatedFile: "$annotatedFile",
+              updatedAt: "$updatedAt"
             }
           }
-
         }
       },
-
-      {
-        $sort: {
-          "manuscript.manuscriptId": -1
-        }
-      }
-
+      { $sort: { "manuscript.manuscriptId": -1 } }
     ]);
 
-    res.status(200).json({
-      success: true,
-      reviews
-    });
-
+    res.status(200).json({ success: true, reviews });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

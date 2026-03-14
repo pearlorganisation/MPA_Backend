@@ -1,7 +1,7 @@
-import sendEmail from "../../utils/sendEmail.js";
-import Manuscript from "./manuscript.model.js";
-import Review from "../review/review.model.js";
-import User from "../user/user.model.js";
+// import sendEmail from "../../utils/sendEmail.js";
+// import Manuscript from "./manuscript.model.js";
+// import Review from "../review/review.model.js";
+// import User from "../user/user.model.js";
 
 export const submitManuscript = async (req, res) => {
   try {
@@ -408,6 +408,324 @@ export const reviseManuscript = async (req, res) => {
   } catch (error) {
     console.error("REVISION ERROR:", error);
     res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+
+
+
+import User from "../user/user.model.js";
+import bcrypt from "bcryptjs";
+import generateToken from "../../utils/generateToken.js";
+
+// =============================
+// SET YOUR REGISTRATION LIMIT
+// =============================
+// 1 => sirf 1 registration allowed
+// 2 => sirf 2 registrations allowed
+// 5 => sirf 5 registrations allowed
+const REGISTRATION_LIMIT = 1;
+
+// Public registration for Researcher
+export const registerUser = async (req, res) => {
+  try {
+    const { name, email, password, affiliation } = req.body;
+
+    if (!name || !email || !password || !affiliation) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required.",
+      });
+    }
+
+    // Check existing email
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already exists.",
+      });
+    }
+
+    // Check total allowed registrations
+    const totalResearchers = await User.countDocuments({ role: "researcher" });
+
+    if (totalResearchers >= REGISTRATION_LIMIT) {
+      return res.status(403).json({
+        success: false,
+        code: "SECURITY_THRESHOLD_REACHED",
+        message:
+          "Registration blocked due to security threshold reached. Please contact the administrator.",
+      });
+    }
+
+    // Hash password only when registration is allowed
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      affiliation,
+      role: "researcher",
+      isVerified: true, // verify email removed
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Account created successfully. You can now log in.",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        affiliation: user.affiliation,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Registration failed due to an internal security processing issue.",
+    });
+  }
+};
+
+// LOGIN
+export const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required.",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email or password.",
+      });
+    }
+
+    if (user.isBlocked) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been blocked by admin.",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email or password.",
+      });
+    }
+
+    const token = generateToken(user._id);
+
+    return res.status(200).json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        affiliation: user.affiliation,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Login failed. Please try again later.",
+    });
+  }
+};
+
+// CREATE USER (Only Master Admin)
+export const createUser = async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "Email already exists",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      isVerified: true,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "User Created Successfully",
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// BLOCK / UNBLOCK
+export const toggleBlockUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.isBlocked = !user.isBlocked;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `User ${user.isBlocked ? "Blocked" : "Unblocked"} Successfully`,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// ASSIGN / UPDATE ROLE
+export const updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const allowedRoles = ["editor", "reviewer", "researcher"];
+
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role",
+      });
+    }
+
+    user.role = role;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "User role updated successfully",
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// GET CURRENT USER PROFILE
+export const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// GET ALL USERS
+export const getAllUsers = async (req, res) => {
+  try {
+    const user = await User.find({}).select("-password").sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      count: user.length,
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// GET ALL EDITORS
+export const getAllEditors = async (req, res) => {
+  try {
+    const editors = await User.find({ role: "editor" }).select("-password");
+
+    return res.status(200).json({
+      success: true,
+      count: editors.length,
+      data: editors,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+// GET ALL REVIEWERS
+export const getAllReviewers = async (req, res) => {
+  try {
+    const reviewer = await User.find({ role: "reviewer" }).select("-password");
+
+    return res.status(200).json({
+      success: true,
+      count: reviewer.length,
+      data: reviewer,
+    });
+  } catch (error) {
+    return res.status(500).json({
       success: false,
       message: error.message,
     });
