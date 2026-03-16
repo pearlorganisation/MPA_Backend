@@ -10,7 +10,7 @@ import {
   registerUser,
   toggleBlockUser,
   updateUserRole,
-  // verifyEmail,
+  verifyEmail,
 } from "./user.controller.js";
 import { protect } from "../../Middlewares/auth.middleware.js";
 import { authorizeRoles } from "../../Middlewares/role.middleware.js";
@@ -53,7 +53,7 @@ router.get("/all", protect, authorizeRoles("masterAdmin"), getAllUsers);
 router.get("/me", protect, getMe);
 
 router.post("/register", registerUser);
-// router.get("/verify-email/:token", verifyEmail);
+router.get("/verify-email/:token", verifyEmail);
 
 //google auth routes
 

@@ -2,7 +2,7 @@ import express from "express";
 import { protect } from "../../Middlewares/auth.middleware.js";
 import { authorizeRoles } from "../../Middlewares/role.middleware.js";
 import upload from "../../Middlewares/upload.middleware.js";
-import { getAllReviewTracking, getMyAssignments, respondToInvitation, submitReview } from "./review.controller.js";
+import { getAllReviewTracking, getEligibleReviewersForManuscript, getMyAssignments, respondToInvitation, submitReview } from "./review.controller.js";
 
 const router = express.Router();
 
@@ -21,5 +21,12 @@ router.get(
     protect,
     authorizeRoles("masterAdmin"),
     getAllReviewTracking
+);
+
+router.get(
+    "/eligible-reviewers/:manuscriptId",
+    protect,
+    authorizeRoles("masterAdmin"),
+    getEligibleReviewersForManuscript
 );
 export default router;

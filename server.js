@@ -3,6 +3,7 @@ dotenv.config();
 import "./src/config/passport.js";
 import app from "./src/app.js";
 import connectDB from "./src/config/db.js";
+import { startPublishAcceptedManuscriptsJob } from "./src/jobs/publishAcceptedManuscripts.job.js";
 
 
 // Connect Database
@@ -12,4 +13,5 @@ const PORT = process.env.PORT || 4040;
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  startPublishAcceptedManuscriptsJob();
 });

@@ -1,5 +1,6 @@
+import mongoose from "mongoose";
 import Review from "./review.model.js";
-
+import User from "../user/user.model.js";
 // 1. Get all assigned papers for logged-in reviewer
 export const getMyAssignments = async (req, res) => {
   try {
@@ -113,5 +114,44 @@ export const getAllReviewTracking = async (req, res) => {
     res.status(200).json({ success: true, reviews });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+
+// Admin: get eligible reviewers for a manuscript
+export const getEligibleReviewersForManuscript = async (req, res) => {
+  try {
+    const { manuscriptId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(manuscriptId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid manuscript id",
+      });
+    }
+
+    const existingReviews = await Review.find({ manuscriptId }).select(
+      "reviewerId invitationStatus"
+    );
+
+    const blockedReviewerIds = existingReviews.map((item) => item.reviewerId);
+
+    const reviewers = await User.find({
+      role: "reviewer",
+      _id: { $nin: blockedReviewerIds },
+    })
+      .select("_id name email")
+      .sort({ name: 1 });
+
+    res.status(200).json({
+      success: true,
+      reviewers,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
