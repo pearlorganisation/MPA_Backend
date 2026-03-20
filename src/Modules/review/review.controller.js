@@ -56,8 +56,7 @@ export const submitReview = async (req, res) => {
     review.commentsToEditor = commentsToEditor;
     review.recommendation = recommendation;
     review.reviewStatus = "Completed";
-
-    // Agar Reviewer ne koi annotated file upload ki hai
+    
     if (req.file) {
       review.annotatedFile = req.file.path;
     }
@@ -131,12 +130,17 @@ export const getEligibleReviewersForManuscript = async (req, res) => {
       });
     }
 
-    const existingReviews = await Review.find({ manuscriptId }).select(
-      "reviewerId invitationStatus"
+    const reviews = await Review.find({ manuscriptId }).select(
+      "reviewerId invitationStatus recommendation reviewStatus"
     );
-
-    const blockedReviewerIds = existingReviews.map((item) => item.reviewerId);
-
+    //Don`t show the reviewers if the Reviewer Completed Decline and Accepted Reviewers
+    const blockedReviewerIds = reviews
+      .filter(
+        (r) =>
+          r.invitationStatus === "Declined" ||
+          (r.reviewStatus === "Completed" && r.recommendation === "Accept")
+      )
+      .map((r) => r.reviewerId);
     const reviewers = await User.find({
       role: "reviewer",
       _id: { $nin: blockedReviewerIds },

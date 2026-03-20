@@ -4,6 +4,7 @@ import Editorial from "./editorial.model.js";
 export const createEditorial = async (req, res) => {
   try {
     console.log("BODY:", req.body);
+    console.log("Images Detail is Here :-  ",req.file);
 
     const editorial = await Editorial.create({
       type: req.body.type,

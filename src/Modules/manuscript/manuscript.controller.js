@@ -2,6 +2,60 @@ import sendEmail from "../../utils/sendEmail.js";
 import Manuscript from "./manuscript.model.js";
 import Review from "../review/review.model.js";
 import User from "../user/user.model.js";
+import {
+  buildRejectionEmail,
+  buildRevisionEmail,
+  buildAcceptanceEmail,
+  buildPublishedEmail,
+  buildReviewerInvitationEmail,
+  buildReviewerReReviewEmail
+} from "../../utils/emailTemplates.js";
+
+//  Volume + Issue calculate
+const getVolumeIssue = (publishDate) => {
+  const date = new Date(publishDate);
+
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+
+  const baseYear = 2026;
+  const volume = year - baseYear + 1;
+
+  let issue = 1;
+  let issueLabel = "";
+
+  if (month <= 3) {
+    issue = 1;
+    issueLabel = "Jan–Mar";
+  } else if (month <= 6) {
+    issue = 2;
+    issueLabel = "Apr–Jun";
+  } else if (month <= 9) {
+    issue = 3;
+    issueLabel = "Jul–Sep";
+  } else {
+    issue = 4;
+    issueLabel = "Oct–Dec";
+  }
+
+  return { volume, issue, issueLabel };
+};
+
+//  Paper number generate
+const generatePaperNumber = async (volume, issue) => {
+  const count = await Manuscript.countDocuments({
+    volume,
+    issue,
+    status: "Published",
+  });
+
+  const sequence = count + 1;
+
+  return {
+    paperSequence: sequence,
+    paperNumber: `${volume}.${issue}.${sequence}`,
+  };
+};
 
 // Submit new manuscript
 export const submitManuscript = async (req, res) => {
@@ -14,10 +68,70 @@ export const submitManuscript = async (req, res) => {
       });
     }
 
-    const { title, abstract, keywords, authors } = req.body;
+    const { title, abstract, keywords, authors, discipline } = req.body;
+    let parsedAuthors;
 
+    try {
+      parsedAuthors = JSON.parse(authors);
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid authors format (must be JSON)",
+      });
+    }
+
+    // Must be array
+    if (!Array.isArray(parsedAuthors)) {
+      return res.status(400).json({
+        success: false,
+        message: "Authors must be an array",
+      });
+    }
+
+    // Min / Max validation
+    if (parsedAuthors.length < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "At least 1 author is required",
+      });
+    }
+
+    if (parsedAuthors.length > 15) {
+      return res.status(400).json({
+        success: false,
+        message: "Maximum 15 authors allowed",
+      });
+    }
+
+    // Validate each author
+    for (const author of parsedAuthors) {
+      if (!author.name || !author.email) {
+        return res.status(400).json({
+          success: false,
+          message: "Each author must have name and email",
+        });
+      }
+
+      const emailRegex = /^\S+@\S+\.\S+$/;
+      if (!emailRegex.test(author.email)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid email for ${author.name}`,
+        });
+      }
+    }
+
+    // Duplicate email check
+    const emails = parsedAuthors.map(a => a.email.toLowerCase());
+
+    if (new Set(emails).size !== emails.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Duplicate author emails are not allowed",
+      });
+    }
     // Validate required fields
-    if (!title || !abstract || !authors) {
+    if (!title || !abstract || !authors || !discipline) {
       return res.status(400).json({
         success: false,
         message: "Required fields missing",
@@ -32,9 +146,10 @@ export const submitManuscript = async (req, res) => {
     const newManuscript = await Manuscript.create({
       manuscriptId: mId,
       title,
+      discipline,
       abstract,
       keywords: keywords ? keywords.split(",") : [],
-      authors: JSON.parse(authors),
+      authors: parsedAuthors,
       submittedBy: req.user._id,
       files: {
         manuscriptFile: req.files?.manuscriptFile
@@ -156,6 +271,26 @@ export const updateSubmissionStatus = async (req, res) => {
     // Uploaded feedback file
     const file = req.file ? req.file.path : null;
 
+    // --- NEW SECURITY CHECK FOR ACCEPT/PUBLISH ---
+    // Check if the admin is trying to Accept or Publish the manuscript
+    if (status === "Accepted" || status === "Published") {
+      // Count how many reviewers gave the final recommendation of "Accept"
+      const acceptRecommendationsCount = await Review.countDocuments({
+        manuscriptId: manuscriptId,
+        reviewStatus: "Completed",
+        recommendation: "Accept",
+      });
+
+      // If less than 2 reviewers recommended "Accept", stop the process
+      if (acceptRecommendationsCount < 2) {
+        return res.status(400).json({
+          success: false,
+          message: "Action Denied: You need at least 2 'Accept' recommendations from reviewers to Accept or Publish this manuscript.",
+        });
+      }
+    }
+    // --- END OF SECURITY CHECK ---
+
     // Find manuscript with researcher info
     const manuscript = await Manuscript.findById(manuscriptId).populate(
       "submittedBy",
@@ -229,6 +364,19 @@ export const updateSubmissionStatus = async (req, res) => {
       if (!manuscript.publishDate) {
         manuscript.publishDate = new Date();
       }
+
+      //  STEP 1: Volume & Issue
+      const { volume, issue, issueLabel } = getVolumeIssue(manuscript.publishDate);
+
+      //  STEP 2: Paper Number
+      const { paperSequence, paperNumber } = await generatePaperNumber(volume, issue);
+
+      //  SAVE
+      manuscript.volume = volume;
+      manuscript.issue = issue;
+      manuscript.issueLabel = issueLabel;
+      manuscript.paperSequence = paperSequence;
+      manuscript.paperNumber = paperNumber;
     }
 
     await manuscript.save();
@@ -236,29 +384,18 @@ export const updateSubmissionStatus = async (req, res) => {
     // Send rejection email
     if (status === "Rejected") {
       const researcher = manuscript.submittedBy;
-
-      const message = `
-        <h2>Manuscript Rejected</h2>
-        <p>Dear ${researcher.name},</p>
-        <p>Your manuscript <b>${manuscript.manuscriptId}</b> has been rejected after editorial review.</p>
-        <h3>Feedback:</h3>
-        <p>${feedback || "No feedback provided."}</p>
-        <br/>
-        <p>Thank you for submitting to our journal.</p>
-        <p><b>Editorial Team</b></p>
-      `;
+      const html = buildRejectionEmail(
+        researcher.name,
+        manuscript.manuscriptId,
+        feedback
+      );
 
       sendEmail({
         email: researcher.email,
         subject: "Manuscript Rejection Notification",
-        html: message,
+        html,
         attachments: file
-          ? [
-            {
-              filename: "feedback-file",
-              path: file,
-            },
-          ]
+          ? [{ filename: "feedback-file", path: file }]
           : [],
       })
         .then(() => console.log(`✅ Rejection Email sent to ${researcher.email}`))
@@ -271,38 +408,19 @@ export const updateSubmissionStatus = async (req, res) => {
 
       const revisionUrl = `${process.env.FRONTEND_URL}/revise-manuscript/${manuscript._id}`;
 
-      const message = `
-        <h2>Action Required: Revisions for your Manuscript</h2>
-        <p>Dear ${researcher.name},</p>
-        <p>The editorial team has reviewed your manuscript <b>${manuscript.manuscriptId}</b>.</p>
-
-        <div style="background-color:#f3f4f6;padding:15px;border-left:4px solid #F97316;margin:20px 0;">
-          <h3 style="margin-top:0;color:#C2410C;">Editorial Feedback:</h3>
-          <p style="white-space:pre-wrap;">${feedback || "No feedback provided."}</p>
-        </div>
-
-        <p>Click below to upload revised files:</p>
-
-        <a href="${revisionUrl}" 
-        style="display:inline-block;padding:10px 20px;background:#F97316;color:white;text-decoration:none;border-radius:5px;">
-          Revise Manuscript
-        </a>
-
-        <br/><br/>
-        <p><b>Editorial Team</b></p>
-      `;
+      const html = buildRevisionEmail(
+        researcher.name,
+        manuscript.manuscriptId,
+        feedback,
+        revisionUrl
+      );
 
       sendEmail({
         email: researcher.email,
         subject: `Revision Required: ${manuscript.manuscriptId}`,
-        html: message,
+        html,
         attachments: file
-          ? [
-            {
-              filename: "revision-feedback",
-              path: file,
-            },
-          ]
+          ? [{ filename: "revision-feedback", path: file }]
           : [],
       })
         .then(() => console.log(`✅ Revision Email sent to ${researcher.email}`))
@@ -312,23 +430,16 @@ export const updateSubmissionStatus = async (req, res) => {
     // Send acceptance email with scheduled publish date
     if (status === "Accepted") {
       const researcher = manuscript.submittedBy;
-
-      const message = `
-        <h2>Manuscript Accepted</h2>
-        <p>Dear ${researcher.name},</p>
-        <p>Your manuscript <b>${manuscript.manuscriptId}</b> has been accepted.</p>
-        <p><b>Scheduled Publish Date:</b> ${new Date(
+      const html = buildAcceptanceEmail(
+        researcher.name,
+        manuscript.manuscriptId,
         manuscript.publishDate
-      ).toLocaleString()}</p>
-        <br/>
-        <p>Your manuscript will be automatically published on the scheduled date.</p>
-        <p><b>Editorial Team</b></p>
-      `;
+      );
 
       sendEmail({
         email: researcher.email,
         subject: `Manuscript Accepted: ${manuscript.manuscriptId}`,
-        html: message,
+        html,
       })
         .then(() => console.log(`✅ Acceptance Email sent to ${researcher.email}`))
         .catch((err) => console.error("❌ Acceptance Email failed", err));
@@ -337,23 +448,16 @@ export const updateSubmissionStatus = async (req, res) => {
     // Send publication email
     if (status === "Published") {
       const researcher = manuscript.submittedBy;
-
-      const message = `
-        <h2>Manuscript Published</h2>
-        <p>Dear ${researcher.name},</p>
-        <p>Your manuscript <b>${manuscript.manuscriptId}</b> has been published successfully.</p>
-        <p><b>Published At:</b> ${new Date(
+      const html = buildPublishedEmail(
+        researcher.name,
+        manuscript.manuscriptId,
         manuscript.publishedAt
-      ).toLocaleString()}</p>
-        <br/>
-        <p>Congratulations!</p>
-        <p><b>Editorial Team</b></p>
-      `;
+      );
 
       sendEmail({
         email: researcher.email,
         subject: `Manuscript Published: ${manuscript.manuscriptId}`,
-        html: message,
+        html,
       })
         .then(() =>
           console.log(`✅ Publication Email sent to ${researcher.email}`)
@@ -379,10 +483,20 @@ export const updateSubmissionStatus = async (req, res) => {
 export const assignReviewers = async (req, res) => {
   try {
     const { manuscriptId, reviewerIds } = req.body;
+    if (!reviewerIds || reviewerIds.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Minimum 2 reviewers are required",
+      });
+    }
 
+    // BUG FIX: Using $addToSet prevents overwriting existing assigned reviewers
     const manuscript = await Manuscript.findByIdAndUpdate(
       manuscriptId,
-      { assignedReviewers: reviewerIds, status: "Under Review" },
+      {
+        $addToSet: { assignedReviewers: { $each: reviewerIds } },
+        status: "Under Review"
+      },
       { new: true }
     );
 
@@ -400,6 +514,7 @@ export const assignReviewers = async (req, res) => {
       });
 
       if (!existingReview) {
+        // CASE 1: Completely New Reviewer
         await Review.create({
           manuscriptId,
           reviewerId: rId,
@@ -409,18 +524,57 @@ export const assignReviewers = async (req, res) => {
         const reviewer = await User.findById(rId);
 
         if (reviewer) {
-          const message = `
-            <h2>Reviewer Invitation</h2>
-            <p>Dear ${reviewer.name},</p>
-            <p>You have been assigned to review the manuscript: <b>${manuscript.title}</b>.</p>
-            <p>Please login to your dashboard to Accept or Decline this request.</p>
-          `;
+          const html = buildReviewerInvitationEmail(
+            reviewer.name,
+            manuscript.title
+          );
 
           sendEmail({
             email: reviewer.email,
             subject: "New Manuscript Review Invitation",
-            html: message,
+            html,
           }).catch(console.error);
+        }
+      } else {
+        // CASE 2: Iterative Review (Re-assigning for the next round)
+        if (existingReview.reviewStatus === "Completed") {
+
+          // Step A: Save old review to history
+          existingReview.history = existingReview.history || [];
+          existingReview.history.push({
+            scores: existingReview.scores,
+            commentsToAuthor: existingReview.commentsToAuthor,
+            commentsToEditor: existingReview.commentsToEditor,
+            annotatedFile: existingReview.annotatedFile,
+            recommendation: existingReview.recommendation,
+            reviewedAt: existingReview.updatedAt
+          });
+
+          // Step B: Reset status so they can review the new files
+          existingReview.invitationStatus = "Pending";
+          existingReview.reviewStatus = "Pending";
+          existingReview.recommendation = null;
+          existingReview.scores = { originality: null, clarity: null, methodology: null, contribution: null };
+          existingReview.commentsToAuthor = "";
+          existingReview.commentsToEditor = "";
+          existingReview.annotatedFile = null;
+
+          await existingReview.save();
+
+          // Step C: Send specific email for Re-review
+          const reviewer = await User.findById(rId);
+          if (reviewer) {
+            const html = buildReviewerReReviewEmail(
+              reviewer.name,
+              manuscript.title
+            );
+
+            sendEmail({
+              email: reviewer.email,
+              subject: "Revised Manuscript Review Request",
+              html,
+            }).catch(console.error);
+          }
         }
       }
     }

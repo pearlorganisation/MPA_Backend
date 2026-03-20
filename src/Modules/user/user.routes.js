@@ -84,10 +84,10 @@ router.get(
     try {
       const { email, name } = req.user;
 
-      // 1️⃣ Check if user already exists
+      // Check if user already exists
       let user = await User.findOne({ email });
 
-      // 2️⃣ If not exist → create new user
+      // If not exist → create new user
       if (!user) {
         user = await User.create({
           name,
@@ -97,10 +97,10 @@ router.get(
         });
       }
 
-      // 3️⃣ Create token using user._id
+      //  Create token using user._id
      const token = generateToken(user._id);
 
-      // 4️⃣ Redirect to frontend
+      //  Redirect to frontend
       res.redirect(
         `${process.env.FRONTEND_URL}/login-success?token=${token}`
       );
