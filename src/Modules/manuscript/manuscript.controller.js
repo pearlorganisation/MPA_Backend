@@ -68,7 +68,7 @@ export const submitManuscript = async (req, res) => {
       });
     }
 
-    const { title, abstract, keywords, authors, discipline } = req.body;
+    const { title, abstract, keywords, authors, discipline, manuscriptType } = req.body;
     let parsedAuthors;
 
     try {
@@ -131,7 +131,7 @@ export const submitManuscript = async (req, res) => {
       });
     }
     // Validate required fields
-    if (!title || !abstract || !authors || !discipline) {
+    if (!title || !abstract || !authors || !discipline || !manuscriptType) {
       return res.status(400).json({
         success: false,
         message: "Required fields missing",
@@ -148,6 +148,7 @@ export const submitManuscript = async (req, res) => {
       title,
       discipline,
       abstract,
+      manuscriptType,
       keywords: keywords ? keywords.split(",") : [],
       authors: parsedAuthors,
       submittedBy: req.user._id,

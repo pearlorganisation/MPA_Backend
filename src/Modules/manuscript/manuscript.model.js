@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+
 const authorSchema = new mongoose.Schema(
   {
     name: {
@@ -55,6 +56,12 @@ const manuscriptSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+
+    manuscriptType: {
+      type: String,
+      enum: ["review", "response"],
+       required: true,
     },
 
     keywords: [

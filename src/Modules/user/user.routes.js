@@ -9,6 +9,7 @@ import {
   loginUser,
   registerUser,
   toggleBlockUser,
+  updateProfile,
   updateUserRole,
   verifyEmail,
 } from "./user.controller.js";
@@ -51,6 +52,7 @@ router.put(
 
 router.get("/all", protect, authorizeRoles("masterAdmin"), getAllUsers);
 router.get("/me", protect, getMe);
+router.put("/profile", protect, updateProfile);
 
 router.post("/register", registerUser);
 router.get("/verify-email/:token", verifyEmail);
