@@ -60,7 +60,7 @@ const manuscriptSchema = new mongoose.Schema(
 
     manuscriptType: {
       type: String,
-      enum: ["review", "response"],
+      enum: ["review", "research"],
        required: true,
     },
 

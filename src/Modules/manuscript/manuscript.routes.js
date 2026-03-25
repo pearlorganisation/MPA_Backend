@@ -1,5 +1,5 @@
 import express from "express";
-import { submitManuscript, getMySubmissions, getAllSubmissions, assignEditor, updateSubmissionStatus, assignReviewers, getAssignedToEditor, getManuscriptById, reviseManuscript } from "./manuscript.controller.js";
+import { submitManuscript, getMySubmissions, getAllSubmissions, assignEditor, updateSubmissionStatus, assignReviewers, getAssignedToEditor, getManuscriptById, reviseManuscript, getPublishedArticles } from "./manuscript.controller.js";
 import { protect } from "../../Middlewares/auth.middleware.js";
 import upload from "../../Middlewares/upload.middleware.js";
 import { authorizeRoles } from "../../Middlewares/role.middleware.js";
@@ -14,6 +14,8 @@ router.post("/submit", protect, upload.fields([
   { name: 'ethicalDeclaration', maxCount: 1 },
   { name: 'aiReport', maxCount: 1 }
 ]), submitManuscript);
+
+router.get("/published", getPublishedArticles);
 
 router.get("/my-submissions", protect, getMySubmissions);
 
@@ -50,3 +52,5 @@ router.put("/revise/:id", protect, upload.fields([
   { name: 'ethicalDeclaration', maxCount: 1 },
 ]), reviseManuscript);
 export default router;
+
+

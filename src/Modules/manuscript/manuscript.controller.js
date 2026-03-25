@@ -716,3 +716,51 @@ export const reviseManuscript = async (req, res) => {
     });
   }
 };
+
+
+// Get only published articles for the public website
+// export const getPublishedArticles = async (req, res) => {
+//   try {
+//     const articles = await Manuscript.find({ status: "Published" })
+//       .populate("submittedBy", "name affiliation") // Optional: include author info
+//       .sort({ publishedAt: -1 });
+
+//     res.status(200).json({
+//       success: true,
+//       count: articles.length,
+//       articles,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+
+export const getPublishedArticles = async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    let query = { status: "Published" };
+
+    // ✅ Add search condition if search exists
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { keywords: { $regex: search, $options: "i" } },
+        { abstract: { $regex: search, $options: "i" } }, // optional
+      ];
+    }
+
+    const articles = await Manuscript.find(query)
+      .populate("submittedBy", "name affiliation")
+      .sort({ publishedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: articles.length,
+      articles,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
