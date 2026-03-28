@@ -1,5 +1,5 @@
 import express from "express";
-import { submitManuscript, getMySubmissions, getAllSubmissions, assignEditor, updateSubmissionStatus, assignReviewers, getAssignedToEditor, getManuscriptById, reviseManuscript, getPublishedArticles } from "./manuscript.controller.js";
+import { submitManuscript, getMySubmissions, getAllSubmissions, assignEditor, updateSubmissionStatus, assignReviewers, getAssignedToEditor, getManuscriptById, reviseManuscript, getPublishedArticles, editManuscriptByAdmin, deleteManuscriptByAdmin } from "./manuscript.controller.js";
 import { protect } from "../../Middlewares/auth.middleware.js";
 import upload from "../../Middlewares/upload.middleware.js";
 import { authorizeRoles } from "../../Middlewares/role.middleware.js";
@@ -51,6 +51,31 @@ router.put("/revise/:id", protect, upload.fields([
   { name: 'tables', maxCount: 1 },
   { name: 'ethicalDeclaration', maxCount: 1 },
 ]), reviseManuscript);
+
+// Admin Edit Route
+router.put(
+  "/admin/edit/:id",
+  protect,
+  authorizeRoles("masterAdmin"),
+  upload.fields([
+    { name: "manuscriptFile", maxCount: 1 },
+    { name: "coverLetter", maxCount: 1 },
+    { name: "figures", maxCount: 1 },
+    { name: "tables", maxCount: 1 },
+    { name: "ethicalDeclaration", maxCount: 1 },
+    { name: "aiReport", maxCount: 1 },
+  ]),
+  editManuscriptByAdmin
+);
+
+// Admin Delete Route
+router.delete(
+  "/admin/delete/:id",
+  protect,
+  authorizeRoles("masterAdmin"),
+  deleteManuscriptByAdmin
+);
+
+router.get("/published/:id", getManuscriptById);
+router.get("/:id", protect, getManuscriptById);
 export default router;
-
-

@@ -61,7 +61,7 @@ const manuscriptSchema = new mongoose.Schema(
     manuscriptType: {
       type: String,
       enum: ["review", "research"],
-       required: true,
+      required: true,
     },
 
     keywords: [
@@ -105,12 +105,24 @@ const manuscriptSchema = new mongoose.Schema(
         "Editor Assigned",
         "Under Review",
         "Revision Required",
+        "Awaiting Admin Decision",
         "Accepted",
         "Rejected",
         "Published",
       ],
       default: "Submitted",
       index: true,
+    },
+
+    editorRecommendation: {
+      type: String,
+      enum: ["Recommend Acceptance", "Recommend Rejection", "Recommend Revision", null],
+      default: null
+    },
+
+    editorInternalComments: {
+      type: String, 
+      default: ""
     },
 
     assignedEditor: {
@@ -131,7 +143,7 @@ const manuscriptSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
-    
+
     revisionFeedback: {
       type: String,
       default: "",

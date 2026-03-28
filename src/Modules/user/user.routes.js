@@ -2,6 +2,7 @@ import express from "express";
 
 import {
   createUser,
+  deleteUser,
   getAllEditors,
   getAllReviewers,
   getAllUsers,
@@ -35,6 +36,9 @@ router.get("/editors", protect, authorizeRoles("masterAdmin"),getAllEditors);
 
 //Get All Reviewer
 router.get("/reviewers", protect, authorizeRoles("masterAdmin","editor"),getAllReviewers);
+
+//Delte the User
+router.delete("/delete/:id",protect,authorizeRoles("masterAdmin"),deleteUser);
 
 router.put(
   "/block/:id",

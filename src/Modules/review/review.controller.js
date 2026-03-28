@@ -70,7 +70,8 @@ export const submitReview = async (req, res) => {
 };
 
 
-// Admin can see all review tracking
+// Admin and Editor can see all review tracking
+
 export const getAllReviewTracking = async (req, res) => {
   try {
     const reviews = await Review.aggregate([
@@ -86,7 +87,9 @@ export const getAllReviewTracking = async (req, res) => {
               _id: "$manuscript._id",
               manuscriptId: "$manuscript.manuscriptId",
               title: "$manuscript.title",
-              status: "$manuscript.status"
+              status: "$manuscript.status",
+              editorRecommendation: "$manuscript.editorRecommendation",
+              editorInternalComments: "$manuscript.editorInternalComments"
             }
           },
           reviewers: {

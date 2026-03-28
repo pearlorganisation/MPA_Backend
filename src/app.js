@@ -3,6 +3,7 @@ import userRoutes from "./Modules/user/user.routes.js";
 import manuscriptRoutes from "./Modules/manuscript/manuscript.routes.js";
 import editorialRoutes from "./Modules/website/editorial/editorial.routes.js";
 import reviewRoutes from "./Modules/review/review.routes.js";
+import enquiryRoutes from "./Modules/enquiry/enquiry.routes.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -38,6 +39,7 @@ app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/manuscripts", manuscriptRoutes);
 app.use("/api/v1/website/editorial", editorialRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
+app.use("/api/v1/enquiry",enquiryRoutes);
 
 // Default Routes
 app.get("/", (req, res) => {

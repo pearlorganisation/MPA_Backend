@@ -98,7 +98,7 @@ export const buildRevisionEmail = (researcherName, manuscriptId, feedback, revis
 export const buildAcceptanceEmail = (researcherName, manuscriptId, publishDate) => {
   const formattedDate = new Date(publishDate).toLocaleString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const content = `
-    <h2 style="color: #16a34a; font-size: 22px; margin-top: 0;">🎉 Manuscript Accepted!</h2>
+    <h2 style="color: #16a34a; font-size: 22px; margin-top: 0;"> Manuscript Accepted!</h2>
     <p style="font-size: 16px; line-height: 1.6;">Dear <b>${researcherName}</b>,</p>
     <p style="font-size: 16px; line-height: 1.6;">We are extremely thrilled to inform you that your manuscript <b>${manuscriptId}</b> has successfully passed the peer-review process and is formally <b>Accepted</b> for publication.</p>
     
@@ -115,7 +115,7 @@ export const buildAcceptanceEmail = (researcherName, manuscriptId, publishDate) 
 export const buildPublishedEmail = (researcherName, manuscriptId, publishedAt) => {
   const formattedDate = new Date(publishedAt).toLocaleString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const content = `
-    <h2 style="color: #4f46e5; font-size: 22px; margin-top: 0;">🚀 Manuscript Published Online!</h2>
+    <h2 style="color: #4f46e5; font-size: 22px; margin-top: 0;"> Manuscript Published Online!</h2>
     <p style="font-size: 16px; line-height: 1.6;">Dear <b>${researcherName}</b>,</p>
     <p style="font-size: 16px; line-height: 1.6;">Congratulations! Your manuscript has been fully finalized and is now officially <b>Published</b> in the MPA Research journal.</p>
     
@@ -164,4 +164,120 @@ export const buildReviewerReReviewEmail = (reviewerName, manuscriptTitle) => {
     <p style="font-size: 16px; line-height: 1.6;">Please log in to your dashboard to proceed with the next round of evaluation.</p>
   `;
   return baseEmailTemplate("Revised Manuscript Review", content, "#8b5cf6"); // Purple
+};
+
+// 🟢 7. New Submission Email Template (Admin Notification)
+export const buildNewSubmissionEmail = (adminName, manuscriptId, manuscriptTitle, authorName) => {
+  const content = `
+    <h2 style="color: #0f766e; font-size: 22px; margin-top: 0;">New Manuscript Submitted 📝</h2>
+    <p style="font-size: 16px; line-height: 1.6;">Dear <b>${adminName}</b>,</p>
+    <p style="font-size: 16px; line-height: 1.6;">A new manuscript has just been submitted to the MPA Research Journal and is awaiting your initial editorial review.</p>
+    
+    <div style="background-color: #f0fdfa; border: 1px solid #ccfbf1; padding: 20px; margin: 25px 0; border-radius: 6px;">
+      <h3 style="color: #115e59; margin-top: 0; font-size: 16px; border-bottom: 1px solid #99f6e4; padding-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Submission Details</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 15px;">
+        <tr>
+          <td width="35%" style="padding: 6px 0; font-size: 15px; color: #134e4a; font-weight: 600;">Manuscript ID:</td>
+          <td width="65%" style="padding: 6px 0; font-size: 15px; color: #0f766e; font-weight: 700;">${manuscriptId}</td>
+        </tr>
+        <tr>
+          <td width="35%" style="padding: 6px 0; font-size: 15px; color: #134e4a; font-weight: 600;">Submitting Author:</td>
+          <td width="65%" style="padding: 6px 0; font-size: 15px; color: #374151;">${authorName}</td>
+        </tr>
+        <tr>
+          <td width="35%" style="padding: 6px 0; font-size: 15px; color: #134e4a; font-weight: 600; vertical-align: top;">Title:</td>
+          <td width="65%" style="padding: 6px 0; font-size: 15px; color: #374151; font-style: italic;">"${manuscriptTitle}"</td>
+        </tr>
+      </table>
+    </div>
+    
+    <p style="font-size: 16px; line-height: 1.6;">Please log in to the Master Admin dashboard to review the files and assign an appropriate editor to this manuscript.</p>
+    
+    <div style="text-align: center; margin: 35px 0;">
+      <a href="${process.env.FRONTEND_URL || '#'}/admin/dashboard" style="background-color: #0f766e; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; display: inline-block; box-shadow: 0 4px 6px rgba(15, 118, 110, 0.2);">Go to Admin Dashboard</a>
+    </div>
+  `;
+
+  return baseEmailTemplate("New Manuscript Submission", content, "#0f766e"); // Teal
+};
+
+// 🟢 9.Editor Assign Email
+export const buildEditorAssignmentEmail = (
+  editorName,
+  manuscriptId,
+  manuscriptTitle,
+  adminName
+) => {
+  const content = `
+    <h2 style="color: #2563eb; font-size: 22px; margin-top: 0;">
+      New Editorial Assignment
+    </h2>
+
+    <p style="font-size: 16px; line-height: 1.6;">
+      Dear <b>${editorName}</b>,
+    </p>
+
+    <p style="font-size: 16px; line-height: 1.6;">
+      You have been officially assigned as an <b>Editor</b> by 
+      <b>${adminName || "Master Admin"}</b> for the following manuscript.
+    </p>
+
+    <!-- Manuscript Box -->
+    <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 20px; margin: 25px 0; border-radius: 8px;">
+      
+      <h3 style="margin-top: 0; color: #1e40af; font-size: 16px; border-bottom: 1px solid #93c5fd; padding-bottom: 10px;">
+        Manuscript Details
+      </h3>
+
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 10px;">
+        <tr>
+          <td style="padding: 6px 0; font-size: 14px; font-weight: 600; color: #1e3a8a;">
+            Manuscript ID:
+          </td>
+          <td style="padding: 6px 0; font-size: 14px; color: #111827;">
+            ${manuscriptId}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding: 6px 0; font-size: 14px; font-weight: 600; color: #1e3a8a;">
+            Title:
+          </td>
+          <td style="padding: 6px 0; font-size: 14px; color: #374151; font-style: italic;">
+            "${manuscriptTitle}"
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Instructions -->
+    <p style="font-size: 16px; line-height: 1.6;">
+      As an editor, you are responsible for:
+    </p>
+
+    <ul style="font-size: 15px; line-height: 1.8; color: #374151;">
+      <li>Reviewing the manuscript submission</li>
+      <li>Assigning appropriate reviewers</li>
+      <li>Monitoring the peer-review process</li>
+      <li>Providing editorial decisions</li>
+    </ul>
+
+    <!-- CTA Button -->
+    <div style="text-align: center; margin: 35px 0;">
+      <a href="${process.env.FRONTEND_URL}/editor/dashboard"
+         style="background-color: #2563eb; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; display: inline-block; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);">
+        Go to Editor Dashboard
+      </a>
+    </div>
+
+    <p style="font-size: 15px; color: #6b7280;">
+      Please log in to your dashboard and take necessary action at your earliest convenience.
+    </p>
+  `;
+
+  return baseEmailTemplate(
+    "Editor Assignment",
+    content,
+    "#2563eb"
+  );
 };

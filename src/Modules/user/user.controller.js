@@ -304,3 +304,33 @@ export const getAllReviewers = async (req, res) => {
       })
   }
 }
+
+//Delete A User
+export const deleteUser= async (req,res)=> {
+  try{
+    const user=await User.findById(req.params.id);
+    if(!user)
+    {
+      return res.status(404)
+      .json({message:"User not Found"});
+    }
+    if(user.role === "masterAdmin")
+    {
+      return res.status(400)
+      .json({message:"Cannot Delete Master Admin"});
+    }
+
+    await user.deleteOne();
+
+    res.status(200)
+    .json({
+      success:true,
+      message:"User Deleted Successfully",
+    })
+  }
+  catch(error)
+  {
+    res.status(500)
+    .json({message:error.message});
+  }
+}
