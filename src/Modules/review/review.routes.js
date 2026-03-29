@@ -19,7 +19,7 @@ router.put("/submit/:id", protect, authorizeRoles("reviewer"), upload.single("an
 router.get(
     "/admin-review-tracking",
     protect,
-    authorizeRoles("masterAdmin"),
+    authorizeRoles("masterAdmin","editor"),
     getAllReviewTracking
 );
 

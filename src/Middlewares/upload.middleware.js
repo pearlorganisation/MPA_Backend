@@ -12,10 +12,22 @@ cloudinary.config({
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: async (req, file) => ({
-    folder: "journal_manuscripts",
-    resource_type: "raw",
-  }),
+  params: async (req, file) => {
+    const originalName = file.originalname;
+    const lastDotIndex = originalName.lastIndexOf(".");
+
+    const nameWithoutExt =
+      lastDotIndex !== -1
+        ? originalName.substring(0, lastDotIndex)
+        : originalName;
+
+    return {
+      folder: "journal_manuscripts",
+      resource_type: "raw",
+      public_id: `${nameWithoutExt}-${Date.now()}`,
+      flags: "attachment", 
+    };
+  },
 });
 
 const fileFilter = (req, file, cb) => {

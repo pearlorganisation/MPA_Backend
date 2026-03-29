@@ -2,6 +2,7 @@ import express from "express";
 
 import {
   createUser,
+  deleteUser,
   getAllEditors,
   getAllReviewers,
   getAllUsers,
@@ -9,6 +10,7 @@ import {
   loginUser,
   registerUser,
   toggleBlockUser,
+  updateProfile,
   updateUserRole,
   verifyEmail,
 } from "./user.controller.js";
@@ -35,6 +37,9 @@ router.get("/editors", protect, authorizeRoles("masterAdmin"),getAllEditors);
 //Get All Reviewer
 router.get("/reviewers", protect, authorizeRoles("masterAdmin","editor"),getAllReviewers);
 
+//Delte the User
+router.delete("/delete/:id",protect,authorizeRoles("masterAdmin"),deleteUser);
+
 router.put(
   "/block/:id",
   protect,
@@ -51,6 +56,7 @@ router.put(
 
 router.get("/all", protect, authorizeRoles("masterAdmin"), getAllUsers);
 router.get("/me", protect, getMe);
+router.put("/profile", protect, updateProfile);
 
 router.post("/register", registerUser);
 router.get("/verify-email/:token", verifyEmail);
@@ -84,10 +90,10 @@ router.get(
     try {
       const { email, name } = req.user;
 
-      // 1️⃣ Check if user already exists
+      // Check if user already exists
       let user = await User.findOne({ email });
 
-      // 2️⃣ If not exist → create new user
+      // If not exist → create new user
       if (!user) {
         user = await User.create({
           name,
@@ -97,10 +103,10 @@ router.get(
         });
       }
 
-      // 3️⃣ Create token using user._id
+      //  Create token using user._id
      const token = generateToken(user._id);
 
-      // 4️⃣ Redirect to frontend
+      //  Redirect to frontend
       res.redirect(
         `${process.env.FRONTEND_URL}/login-success?token=${token}`
       );

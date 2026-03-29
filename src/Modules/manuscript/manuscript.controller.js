@@ -2,6 +2,63 @@ import sendEmail from "../../utils/sendEmail.js";
 import Manuscript from "./manuscript.model.js";
 import Review from "../review/review.model.js";
 import User from "../user/user.model.js";
+import { deleteFromCloudinary } from "../../utils/cloudinaryHelper.js";
+import { buildEditorAssignmentEmail } from "../../utils/emailTemplates.js";
+import {
+  buildRejectionEmail,
+  buildRevisionEmail,
+  buildAcceptanceEmail,
+  buildPublishedEmail,
+  buildReviewerInvitationEmail,
+  buildReviewerReReviewEmail,
+  buildNewSubmissionEmail
+} from "../../utils/emailTemplates.js";
+
+//  Volume + Issue calculate
+const getVolumeIssue = (publishDate) => {
+  const date = new Date(publishDate);
+
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+
+  const baseYear = 2026;
+  const volume = year - baseYear + 1;
+
+  let issue = 1;
+  let issueLabel = "";
+
+  if (month <= 3) {
+    issue = 1;
+    issueLabel = "Jan–Mar";
+  } else if (month <= 6) {
+    issue = 2;
+    issueLabel = "Apr–Jun";
+  } else if (month <= 9) {
+    issue = 3;
+    issueLabel = "Jul–Sep";
+  } else {
+    issue = 4;
+    issueLabel = "Oct–Dec";
+  }
+
+  return { volume, issue, issueLabel };
+};
+
+//  Paper number generate
+const generatePaperNumber = async (volume, issue) => {
+  const count = await Manuscript.countDocuments({
+    volume,
+    issue,
+    status: "Published",
+  });
+
+  const sequence = count + 1;
+
+  return {
+    paperSequence: sequence,
+    paperNumber: `${volume}.${issue}.${sequence}`,
+  };
+};
 
 // Submit new manuscript
 export const submitManuscript = async (req, res) => {
@@ -14,10 +71,70 @@ export const submitManuscript = async (req, res) => {
       });
     }
 
-    const { title, abstract, keywords, authors } = req.body;
+    const { title, abstract, keywords, authors, discipline, manuscriptType } = req.body;
+    let parsedAuthors;
 
+    try {
+      parsedAuthors = JSON.parse(authors);
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid authors format (must be JSON)",
+      });
+    }
+
+    // Must be array
+    if (!Array.isArray(parsedAuthors)) {
+      return res.status(400).json({
+        success: false,
+        message: "Authors must be an array",
+      });
+    }
+
+    // Min / Max validation
+    if (parsedAuthors.length < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "At least 1 author is required",
+      });
+    }
+
+    if (parsedAuthors.length > 15) {
+      return res.status(400).json({
+        success: false,
+        message: "Maximum 15 authors allowed",
+      });
+    }
+
+    // Validate each author
+    for (const author of parsedAuthors) {
+      if (!author.name || !author.email) {
+        return res.status(400).json({
+          success: false,
+          message: "Each author must have name and email",
+        });
+      }
+
+      const emailRegex = /^\S+@\S+\.\S+$/;
+      if (!emailRegex.test(author.email)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid email for ${author.name}`,
+        });
+      }
+    }
+
+    // Duplicate email check
+    const emails = parsedAuthors.map(a => a.email.toLowerCase());
+
+    if (new Set(emails).size !== emails.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Duplicate author emails are not allowed",
+      });
+    }
     // Validate required fields
-    if (!title || !abstract || !authors) {
+    if (!title || !abstract || !authors || !discipline || !manuscriptType) {
       return res.status(400).json({
         success: false,
         message: "Required fields missing",
@@ -32,9 +149,11 @@ export const submitManuscript = async (req, res) => {
     const newManuscript = await Manuscript.create({
       manuscriptId: mId,
       title,
+      discipline,
       abstract,
+      manuscriptType,
       keywords: keywords ? keywords.split(",") : [],
-      authors: JSON.parse(authors),
+      authors: parsedAuthors,
       submittedBy: req.user._id,
       files: {
         manuscriptFile: req.files?.manuscriptFile
@@ -51,6 +170,23 @@ export const submitManuscript = async (req, res) => {
           : null,
       },
     });
+
+    //Send Email to Admin if Any ManuScript Submitted
+    const admin = await User.findOne({ role: "masterAdmin" });
+    if (admin) {
+      const html = buildNewSubmissionEmail(
+        admin.name,
+        mId,
+        title,
+        parsedAuthors[0]?.name || "Unknown Author"
+      );
+
+      sendEmail({
+        email: admin.email,
+        subject: `New Manuscript Submmited ${mId}`,
+        html,
+      })
+    }
 
     res.status(201).json({
       success: true,
@@ -133,7 +269,25 @@ export const assignEditor = async (req, res) => {
     manuscript.assignedEditor = editorId;
     manuscript.status = "Editor Assigned";
 
+
+
     await manuscript.save();
+
+    const editor = await User.findById(editorId);
+    if (editor) {
+      const admin = await User.findOne({ role: "masterAdmin" });
+      const html = buildEditorAssignmentEmail(
+        editor.name,
+        manuscript.manuscriptId,
+        manuscript.title,
+        admin?.name
+      );
+      await sendEmail({
+        email: editor.email,
+        subject: `Editor Assignment: ${manuscript.manuscriptId}`,
+        html,
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -148,15 +302,14 @@ export const assignEditor = async (req, res) => {
   }
 };
 
-// Update final manuscript status
+
 export const updateSubmissionStatus = async (req, res) => {
   try {
     const { manuscriptId, status, feedback, publishDate } = req.body;
+    const userRole = req.user.role;
 
-    // Uploaded feedback file
     const file = req.file ? req.file.path : null;
 
-    // Find manuscript with researcher info
     const manuscript = await Manuscript.findById(manuscriptId).populate(
       "submittedBy",
       "name email"
@@ -165,224 +318,164 @@ export const updateSubmissionStatus = async (req, res) => {
     if (!manuscript) {
       return res.status(404).json({
         success: false,
-        message: "Not found",
+        message: "Manuscript not found",
       });
     }
 
-    // Reject manuscript
-    if (status === "Rejected") {
-      manuscript.status = "Rejected";
-      manuscript.rejectionFeedback = feedback || "";
 
-      if (file) {
-        manuscript.feedbackFile = file;
-      }
-    }
+    if (userRole === "editor") {
 
-    // Ask for revision
-    if (status === "Revision Required") {
-      manuscript.status = "Revision Required";
-      manuscript.revisionFeedback = feedback || "";
-      manuscript.isRevised = false;
+      if (status === "Revision Required") {
+        manuscript.status = "Revision Required";
+        manuscript.revisionFeedback = feedback || "";
+        manuscript.isRevised = false;
+        if (file) manuscript.feedbackFile = file;
 
-      if (file) {
-        manuscript.feedbackFile = file;
-      }
-    }
+        await manuscript.save();
 
-    // Accept manuscript and save publish date
-    if (status === "Accepted") {
-      if (!publishDate) {
-        return res.status(400).json({
-          success: false,
-          message: "Publish date is required when accepting manuscript",
+        const researcher = manuscript.submittedBy;
+        const revisionUrl = `${process.env.FRONTEND_URL}/revise-manuscript/${manuscript._id}`;
+        const html = buildRevisionEmail(researcher.name, manuscript.manuscriptId, feedback, revisionUrl);
+
+        sendEmail({
+          email: researcher.email,
+          subject: `Revision Required: ${manuscript.manuscriptId}`,
+          html,
+          attachments: file ? [{ filename: "Editor-Comments.pdf", path: file }] : [],
+        }).catch(err => console.error("Email Error:", err));
+
+        return res.status(200).json({
+          success: true,
+          message: "Revision request sent directly to the researcher.",
+          manuscript,
+        });
+
+      } else {
+        if (status === "Accepted") {
+          const acceptRecommendationsCount = await Review.countDocuments({
+            manuscriptId: manuscriptId,
+            reviewStatus: "Completed",
+            recommendation: "Accept",
+          });
+
+          if (acceptRecommendationsCount < 2) {
+            return res.status(400).json({
+              success: false,
+              message: `Action Denied: Minimum 2 'Accept' recommendations required. (Current: ${acceptRecommendationsCount})`,
+            });
+          }
+          manuscript.editorRecommendation = "Recommend Acceptance";
+        }
+
+        else if (status === "Rejected") {
+          manuscript.editorRecommendation = "Recommend Rejection";
+        } else {
+          manuscript.editorRecommendation = "Recommend Revision";
+        }
+
+        manuscript.status = "Awaiting Admin Decision";
+        manuscript.editorInternalComments = feedback;
+        if (file) manuscript.feedbackFile = file;
+
+        await manuscript.save();
+
+        return res.status(200).json({
+          success: true,
+          message: "Recommendation sent to the Admin.",
+          manuscript,
         });
       }
+    }
+    if (userRole === "masterAdmin") {
 
-      const selectedPublishDate = new Date(publishDate);
-
-      if (isNaN(selectedPublishDate.getTime())) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid publish date",
+      if (status === "Accepted" || status === "Published") {
+        const acceptRecommendationsCount = await Review.countDocuments({
+          manuscriptId: manuscriptId,
+          reviewStatus: "Completed",
+          recommendation: "Accept",
         });
+
+        if (acceptRecommendationsCount < 2) {
+          return res.status(400).json({
+            success: false,
+            message: "Action Denied: Minimum 2 'Accept' recommendations required.",
+          });
+        }
       }
 
-      if (selectedPublishDate < new Date()) {
-        return res.status(400).json({
-          success: false,
-          message: "Publish date cannot be in the past",
-        });
+
+      if (status === "Rejected") {
+        manuscript.status = "Rejected";
+        manuscript.rejectionFeedback = feedback || "";
+      } else if (status === "Revision Required") {
+        manuscript.status = "Revision Required";
+        manuscript.revisionFeedback = feedback || "";
+        manuscript.isRevised = false;
+      } else if (status === "Accepted") {
+        if (!publishDate) return res.status(400).json({ success: false, message: "Publish date required" });
+        manuscript.status = "Accepted";
+        manuscript.acceptedAt = new Date();
+        manuscript.publishDate = new Date(publishDate);
+      } else if (status === "Published") {
+        manuscript.status = "Published";
+        manuscript.publishedAt = new Date();
+        const { volume, issue, issueLabel } = getVolumeIssue(manuscript.publishDate || new Date());
+        const { paperSequence, paperNumber } = await generatePaperNumber(volume, issue);
+        manuscript.volume = volume;
+        manuscript.issue = issue;
+        manuscript.issueLabel = issueLabel;
+        manuscript.paperSequence = paperSequence;
+        manuscript.paperNumber = paperNumber;
       }
 
-      manuscript.status = "Accepted";
-      manuscript.acceptedAt = new Date();
-      manuscript.publishDate = selectedPublishDate;
-      manuscript.publishedAt = null;
-    }
+      if (file) manuscript.feedbackFile = file;
+      await manuscript.save();
 
-    // Publish manuscript immediately
-    if (status === "Published") {
-      manuscript.status = "Published";
-      manuscript.publishedAt = new Date();
+      const researcher = manuscript.submittedBy;
 
-      if (!manuscript.publishDate) {
-        manuscript.publishDate = new Date();
+      if (status === "Rejected") {
+        const html = buildRejectionEmail(researcher.name, manuscript.manuscriptId, feedback);
+        sendEmail({ email: researcher.email, subject: "Manuscript Update", html });
+      } else if (status === "Accepted") {
+        const html = buildAcceptanceEmail(researcher.name, manuscript.manuscriptId, manuscript.publishDate);
+        sendEmail({ email: researcher.email, subject: "Manuscript Accepted", html });
+      } else if (status === "Published") {
+        const html = buildPublishedEmail(researcher.name, manuscript.manuscriptId, manuscript.publishedAt);
+        sendEmail({ email: researcher.email, subject: "Manuscript Published", html });
       }
+
+      return res.status(200).json({
+        success: true,
+        message: `Status updated to ${status} and Researcher notified.`,
+        manuscript,
+      });
     }
 
-    await manuscript.save();
+    return res.status(403).json({ success: false, message: "Unauthorized" });
 
-    // Send rejection email
-    if (status === "Rejected") {
-      const researcher = manuscript.submittedBy;
-
-      const message = `
-        <h2>Manuscript Rejected</h2>
-        <p>Dear ${researcher.name},</p>
-        <p>Your manuscript <b>${manuscript.manuscriptId}</b> has been rejected after editorial review.</p>
-        <h3>Feedback:</h3>
-        <p>${feedback || "No feedback provided."}</p>
-        <br/>
-        <p>Thank you for submitting to our journal.</p>
-        <p><b>Editorial Team</b></p>
-      `;
-
-      sendEmail({
-        email: researcher.email,
-        subject: "Manuscript Rejection Notification",
-        html: message,
-        attachments: file
-          ? [
-            {
-              filename: "feedback-file",
-              path: file,
-            },
-          ]
-          : [],
-      })
-        .then(() => console.log(`✅ Rejection Email sent to ${researcher.email}`))
-        .catch((err) => console.error("❌ Rejection Email failed", err));
-    }
-
-    // Send revision required email
-    if (status === "Revision Required") {
-      const researcher = manuscript.submittedBy;
-
-      const revisionUrl = `${process.env.FRONTEND_URL}/revise-manuscript/${manuscript._id}`;
-
-      const message = `
-        <h2>Action Required: Revisions for your Manuscript</h2>
-        <p>Dear ${researcher.name},</p>
-        <p>The editorial team has reviewed your manuscript <b>${manuscript.manuscriptId}</b>.</p>
-
-        <div style="background-color:#f3f4f6;padding:15px;border-left:4px solid #F97316;margin:20px 0;">
-          <h3 style="margin-top:0;color:#C2410C;">Editorial Feedback:</h3>
-          <p style="white-space:pre-wrap;">${feedback || "No feedback provided."}</p>
-        </div>
-
-        <p>Click below to upload revised files:</p>
-
-        <a href="${revisionUrl}" 
-        style="display:inline-block;padding:10px 20px;background:#F97316;color:white;text-decoration:none;border-radius:5px;">
-          Revise Manuscript
-        </a>
-
-        <br/><br/>
-        <p><b>Editorial Team</b></p>
-      `;
-
-      sendEmail({
-        email: researcher.email,
-        subject: `Revision Required: ${manuscript.manuscriptId}`,
-        html: message,
-        attachments: file
-          ? [
-            {
-              filename: "revision-feedback",
-              path: file,
-            },
-          ]
-          : [],
-      })
-        .then(() => console.log(`✅ Revision Email sent to ${researcher.email}`))
-        .catch((err) => console.error("❌ Revision Email failed", err));
-    }
-
-    // Send acceptance email with scheduled publish date
-    if (status === "Accepted") {
-      const researcher = manuscript.submittedBy;
-
-      const message = `
-        <h2>Manuscript Accepted</h2>
-        <p>Dear ${researcher.name},</p>
-        <p>Your manuscript <b>${manuscript.manuscriptId}</b> has been accepted.</p>
-        <p><b>Scheduled Publish Date:</b> ${new Date(
-        manuscript.publishDate
-      ).toLocaleString()}</p>
-        <br/>
-        <p>Your manuscript will be automatically published on the scheduled date.</p>
-        <p><b>Editorial Team</b></p>
-      `;
-
-      sendEmail({
-        email: researcher.email,
-        subject: `Manuscript Accepted: ${manuscript.manuscriptId}`,
-        html: message,
-      })
-        .then(() => console.log(`✅ Acceptance Email sent to ${researcher.email}`))
-        .catch((err) => console.error("❌ Acceptance Email failed", err));
-    }
-
-    // Send publication email
-    if (status === "Published") {
-      const researcher = manuscript.submittedBy;
-
-      const message = `
-        <h2>Manuscript Published</h2>
-        <p>Dear ${researcher.name},</p>
-        <p>Your manuscript <b>${manuscript.manuscriptId}</b> has been published successfully.</p>
-        <p><b>Published At:</b> ${new Date(
-        manuscript.publishedAt
-      ).toLocaleString()}</p>
-        <br/>
-        <p>Congratulations!</p>
-        <p><b>Editorial Team</b></p>
-      `;
-
-      sendEmail({
-        email: researcher.email,
-        subject: `Manuscript Published: ${manuscript.manuscriptId}`,
-        html: message,
-      })
-        .then(() =>
-          console.log(`✅ Publication Email sent to ${researcher.email}`)
-        )
-        .catch((err) => console.error("❌ Publication Email failed", err));
-    }
-
-    res.status(200).json({
-      success: true,
-      message: `Status updated to ${status}`,
-      manuscript,
-    });
   } catch (error) {
     console.error("STATUS UPDATE ERROR:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
-// Assign reviewers to manuscript
+
+
 export const assignReviewers = async (req, res) => {
   try {
     const { manuscriptId, reviewerIds } = req.body;
-
+    if (!reviewerIds || reviewerIds.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Minimum 2 reviewers are required",
+      });
+    }
     const manuscript = await Manuscript.findByIdAndUpdate(
       manuscriptId,
-      { assignedReviewers: reviewerIds, status: "Under Review" },
+      {
+        $addToSet: { assignedReviewers: { $each: reviewerIds } },
+        status: "Under Review"
+      },
       { new: true }
     );
 
@@ -409,18 +502,55 @@ export const assignReviewers = async (req, res) => {
         const reviewer = await User.findById(rId);
 
         if (reviewer) {
-          const message = `
-            <h2>Reviewer Invitation</h2>
-            <p>Dear ${reviewer.name},</p>
-            <p>You have been assigned to review the manuscript: <b>${manuscript.title}</b>.</p>
-            <p>Please login to your dashboard to Accept or Decline this request.</p>
-          `;
+          const html = buildReviewerInvitationEmail(
+            reviewer.name,
+            manuscript.title
+          );
 
           sendEmail({
             email: reviewer.email,
             subject: "New Manuscript Review Invitation",
-            html: message,
+            html,
           }).catch(console.error);
+        }
+      } else {
+        // CASE 2: Iterative Review (Re-assigning for the next round)
+        if (existingReview.reviewStatus === "Completed") {
+
+          // Step A: Save old review to history
+          existingReview.history = existingReview.history || [];
+          existingReview.history.push({
+            scores: existingReview.scores,
+            commentsToAuthor: existingReview.commentsToAuthor,
+            commentsToEditor: existingReview.commentsToEditor,
+            annotatedFile: existingReview.annotatedFile,
+            recommendation: existingReview.recommendation,
+            reviewedAt: existingReview.updatedAt
+          });
+
+          existingReview.invitationStatus = "Pending";
+          existingReview.reviewStatus = "Pending";
+          existingReview.recommendation = null;
+          existingReview.scores = { originality: null, clarity: null, methodology: null, contribution: null };
+          existingReview.commentsToAuthor = "";
+          existingReview.commentsToEditor = "";
+          existingReview.annotatedFile = null;
+
+          await existingReview.save();
+
+          const reviewer = await User.findById(rId);
+          if (reviewer) {
+            const html = buildReviewerReReviewEmail(
+              reviewer.name,
+              manuscript.title
+            );
+
+            sendEmail({
+              email: reviewer.email,
+              subject: "Revised Manuscript Review Request",
+              html,
+            }).catch(console.error);
+          }
         }
       }
     }
@@ -463,35 +593,27 @@ export const getAssignedToEditor = async (req, res) => {
 // Get single manuscript by id
 export const getManuscriptById = async (req, res) => {
   try {
-    const manuscript = await Manuscript.findById(req.params.id);
+    const manuscript = await Manuscript.findById(req.params.id)
+      .populate("submittedBy", "name affiliation email");
 
     if (!manuscript) {
-      return res.status(404).json({
-        success: false,
-        message: "Manuscript not found",
-      });
+      return res.status(404).json({ success: false, message: "Manuscript not found" });
     }
 
-    // Researcher can only access own manuscript
-    if (
-      manuscript.submittedBy.toString() !== req.user._id.toString() &&
-      req.user.role === "researcher"
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized",
-      });
+    // Logic: If it's published, anyone can see it. 
+    // If not published, only the owner or admins can see it.
+    if (manuscript.status !== "Published") {
+      if (!req.user || (manuscript.submittedBy._id.toString() !== req.user._id.toString() && req.user.role === "researcher")) {
+        return res.status(403).json({ success: false, message: "Not authorized to view this yet" });
+      }
     }
 
     res.status(200).json({
       success: true,
-      manuscript,
+      manuscript, // This key MUST match what your frontend expects
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -559,5 +681,145 @@ export const reviseManuscript = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+
+// Get only published articles for the public website
+// export const getPublishedArticles = async (req, res) => {
+//   try {
+//     const articles = await Manuscript.find({ status: "Published" })
+//       .populate("submittedBy", "name affiliation") // Optional: include author info
+//       .sort({ publishedAt: -1 });
+
+//     res.status(200).json({
+//       success: true,
+//       count: articles.length,
+//       articles,
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// };
+
+
+export const getPublishedArticles = async (req, res) => {
+  try {
+    const { search } = req.query;
+
+    let query = { status: "Published" };
+
+    //  Add search condition if search exists
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { keywords: { $regex: search, $options: "i" } },
+        { abstract: { $regex: search, $options: "i" } }, // optional
+      ];
+    }
+
+    const articles = await Manuscript.find(query)
+      .populate("submittedBy", "name affiliation")
+      .sort({ publishedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: articles.length,
+      articles,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Admin: Edit Manuscript Details
+export const editManuscriptByAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, abstract, keywords, authors, discipline, manuscriptType } = req.body;
+
+    const manuscript = await Manuscript.findById(id);
+    if (!manuscript) {
+      return res.status(404).json({ success: false, message: "Manuscript not found" });
+    }
+
+    // Parse authors if provided
+    let parsedAuthors = manuscript.authors;
+    if (authors) {
+      try {
+        parsedAuthors = JSON.parse(authors);
+        if (!Array.isArray(parsedAuthors) || parsedAuthors.length < 1 || parsedAuthors.length > 15) {
+          return res.status(400).json({ success: false, message: "Authors must be an array (1-15 authors)" });
+        }
+      } catch (err) {
+        return res.status(400).json({ success: false, message: "Invalid authors format" });
+      }
+    }
+
+    // Handle new file uploads (Replace old files if new ones are uploaded)
+    const updatedFiles = { ...manuscript.files };
+    if (req.files) {
+      const fileFields = ["manuscriptFile", "ethicalDeclaration", "aiReport", "tables", "figures", "coverLetter"];
+
+      for (const field of fileFields) {
+        if (req.files[field]) {
+          // Delete old file from Cloudinary
+          if (updatedFiles[field]) await deleteFromCloudinary(updatedFiles[field]);
+          // Set new file path
+          updatedFiles[field] = req.files[field][0].path;
+        }
+      }
+    }
+
+    // Update the document
+    manuscript.title = title || manuscript.title;
+    manuscript.abstract = abstract || manuscript.abstract;
+    manuscript.discipline = discipline || manuscript.discipline;
+    manuscript.manuscriptType = manuscriptType || manuscript.manuscriptType;
+    manuscript.keywords = keywords ? keywords.split(",") : manuscript.keywords;
+    manuscript.authors = parsedAuthors;
+    manuscript.files = updatedFiles;
+
+    await manuscript.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Manuscript updated successfully by Admin",
+      manuscript,
+    });
+  } catch (error) {
+    console.error("ADMIN EDIT ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Admin: Delete Manuscript Completely
+export const deleteManuscriptByAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const manuscript = await Manuscript.findById(id);
+
+    if (!manuscript) {
+      return res.status(404).json({ success: false, message: "Manuscript not found" });
+    }
+
+    // Delete all associated files from Cloudinary
+    const fileFields = ["manuscriptFile", "ethicalDeclaration", "aiReport", "tables", "figures", "coverLetter"];
+    for (const field of fileFields) {
+      if (manuscript.files[field]) {
+        await deleteFromCloudinary(manuscript.files[field]);
+      }
+    }
+
+    // Delete from Database
+    await Manuscript.findByIdAndDelete(id);
+
+    res.status(200).json({
+      success: true,
+      message: "Manuscript and associated files deleted successfully",
+    });
+  } catch (error) {
+    console.error("ADMIN DELETE ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };

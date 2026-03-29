@@ -1,10 +1,26 @@
 import mongoose from "mongoose";
 
+
 const authorSchema = new mongoose.Schema(
   {
-    name: { type: String, trim: true },
-    email: { type: String, trim: true, lowercase: true },
-    affiliation: { type: String, trim: true },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100,
+    },
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      match: [/^\S+@\S+\.\S+$/, "Invalid email format"],
+    },
+    affiliation: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
   },
   { _id: false }
 );
@@ -30,11 +46,22 @@ const manuscriptSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-
+    discipline: {
+      type: String,
+      required: true,
+      trim: true,
+      index: true,
+    },
     abstract: {
       type: String,
       required: true,
       trim: true,
+    },
+
+    manuscriptType: {
+      type: String,
+      enum: ["review", "research"],
+      required: true,
     },
 
     keywords: [
@@ -44,7 +71,23 @@ const manuscriptSchema = new mongoose.Schema(
       },
     ],
 
-    authors: [authorSchema],
+    authors: {
+      type: [authorSchema],
+      validate: [
+        {
+          validator: function (value) {
+            return value.length >= 1;
+          },
+          message: "At least 1 author is required",
+        },
+        {
+          validator: function (value) {
+            return value.length <= 15;
+          },
+          message: "Maximum 15 authors allowed",
+        },
+      ],
+    },
 
     files: {
       manuscriptFile: { type: String, default: null },
@@ -62,12 +105,24 @@ const manuscriptSchema = new mongoose.Schema(
         "Editor Assigned",
         "Under Review",
         "Revision Required",
+        "Awaiting Admin Decision",
         "Accepted",
         "Rejected",
         "Published",
       ],
       default: "Submitted",
       index: true,
+    },
+
+    editorRecommendation: {
+      type: String,
+      enum: ["Recommend Acceptance", "Recommend Rejection", "Recommend Revision", null],
+      default: null
+    },
+
+    editorInternalComments: {
+      type: String, 
+      default: ""
     },
 
     assignedEditor: {
@@ -130,9 +185,36 @@ const manuscriptSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    volume: {
+      type: Number,
+      default: null,
+    },
+
+    issue: {
+      type: Number,
+      default: null,
+    },
+
+    issueLabel: {
+      type: String,
+      default: "",
+    },
+
+    paperSequence: {
+      type: Number,
+      default: null,
+    },
+
+    paperNumber: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true }
 );
+
+//Index for good performance of Assign volume and issue
+manuscriptSchema.index({ volume: 1, issue: 1 });
 
 // Important compound index for publish cron performance
 manuscriptSchema.index({ status: 1, publishDate: 1, publishedAt: 1 });
