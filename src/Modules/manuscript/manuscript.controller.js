@@ -411,6 +411,26 @@ export const updateSubmissionStatus = async (req, res) => {
         manuscript.status = "Revision Required";
         manuscript.revisionFeedback = feedback || "";
         manuscript.isRevised = false;
+
+        const researcher = manuscript.submittedBy;
+
+        const revisionUrl = `${process.env.FRONTEND_URL}/revise-manuscript/${manuscript._id}`;
+
+        const html = buildRevisionEmail(
+          researcher.name,
+          manuscript.manuscriptId,
+          feedback,
+          revisionUrl
+        );
+
+        await sendEmail({
+          email: researcher.email,
+          subject: `Revision Required: ${manuscript.manuscriptId}`,
+          html,
+          attachments: file
+            ? [{ filename: "Revision-Document.pdf", path: file }]
+            : [],
+        }).catch(err => console.error("EMAIL ERROR:", err))
       } else if (status === "Accepted") {
         if (!publishDate) return res.status(400).json({ success: false, message: "Publish date required" });
         manuscript.status = "Accepted";

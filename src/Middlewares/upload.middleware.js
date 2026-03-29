@@ -21,11 +21,14 @@ const storage = new CloudinaryStorage({
         ? originalName.substring(0, lastDotIndex)
         : originalName;
 
+    const ext = originalName.split(".").pop(); // ✅ EXTENSION nikal
+
     return {
       folder: "journal_manuscripts",
-      resource_type: "raw",
-      public_id: `${nameWithoutExt}-${Date.now()}`,
-      flags: "attachment", 
+      resource_type: file.mimetype.startsWith("image/")
+        ? "image"
+        : "raw",
+      public_id: `${nameWithoutExt}-${Date.now()}.${ext}`, // ✅ EXTENSION add
     };
   },
 });
@@ -35,6 +38,7 @@ const fileFilter = (req, file, cb) => {
     "application/pdf",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.oasis.opendocument.text",
     "image/jpeg",
     "image/png",
   ];
