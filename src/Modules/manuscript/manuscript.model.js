@@ -96,6 +96,7 @@ const manuscriptSchema = new mongoose.Schema(
       aiReport: { type: String, default: null },
       figures: { type: String, default: null },
       tables: { type: String, default: null },
+      reviewChecklist: { type: String, default: null },
     },
 
     status: {
@@ -121,7 +122,7 @@ const manuscriptSchema = new mongoose.Schema(
     },
 
     editorInternalComments: {
-      type: String, 
+      type: String,
       default: ""
     },
 

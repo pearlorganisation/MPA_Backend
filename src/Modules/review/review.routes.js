@@ -26,7 +26,7 @@ router.get(
 router.get(
     "/eligible-reviewers/:manuscriptId",
     protect,
-    authorizeRoles("masterAdmin"),
+    authorizeRoles("masterAdmin","editor"),
     getEligibleReviewersForManuscript
 );
 export default router;

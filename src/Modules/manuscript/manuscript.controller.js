@@ -683,6 +683,9 @@ export const reviseManuscript = async (req, res) => {
       if (req.files.tables) {
         manuscript.files.tables = req.files.tables[0].path;
       }
+      if (req.files.reviewChecklist) {
+        manuscript.files.reviewChecklist = req.files.reviewChecklist[0].path;
+      }
     }
 
     manuscript.status = "Submitted";
@@ -833,6 +836,8 @@ export const deleteManuscriptByAdmin = async (req, res) => {
 
     // Delete from Database
     await Manuscript.findByIdAndDelete(id);
+
+    await Review.deleteMany({manuscriptId: id});
 
     res.status(200).json({
       success: true,

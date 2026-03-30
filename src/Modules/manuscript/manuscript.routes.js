@@ -50,6 +50,7 @@ router.put("/revise/:id", protect, upload.fields([
   { name: 'figures', maxCount: 1 },
   { name: 'tables', maxCount: 1 },
   { name: 'ethicalDeclaration', maxCount: 1 },
+  { name: 'reviewChecklist', maxCount: 1 },
 ]), reviseManuscript);
 
 // Admin Edit Route
