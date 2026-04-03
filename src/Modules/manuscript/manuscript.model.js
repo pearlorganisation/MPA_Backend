@@ -60,7 +60,15 @@ const manuscriptSchema = new mongoose.Schema(
 
     manuscriptType: {
       type: String,
-      enum: ["review", "research"],
+      enum: [
+        "Review Article",
+        "Mini Review",
+        "Systematic Review",
+        "Research Article", 
+        "Short Communication",
+        "Case Report",
+        "Editorial"
+      ],
       required: true,
     },
 
@@ -107,6 +115,7 @@ const manuscriptSchema = new mongoose.Schema(
         "Under Review",
         "Revision Required",
         "Awaiting Admin Decision",
+        "Approved",
         "Accepted",
         "Rejected",
         "Published",

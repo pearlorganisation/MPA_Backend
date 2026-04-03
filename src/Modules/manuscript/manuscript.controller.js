@@ -266,6 +266,13 @@ export const assignEditor = async (req, res) => {
       });
     }
 
+    if (["Published", "Rejected"].includes(manuscript.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Action Denied: This manuscript has already been ${manuscript.status} and cannot be assigned to reviewers.`
+      });
+    }
+
     manuscript.assignedEditor = editorId;
     manuscript.status = "Editor Assigned";
 
@@ -322,6 +329,15 @@ export const updateSubmissionStatus = async (req, res) => {
       });
     }
 
+    //Gaurd if paper publish or reject then status cannot be change after that
+    const finalizedStatus = ["Published", "Rejected"];
+    if (finalizedStatus.includes(manuscript.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Modification Denied: This manuscript is already ${manuscript.status} and cannot be updated.`,
+      });
+    }
+
 
     if (userRole === "editor") {
 
@@ -369,7 +385,8 @@ export const updateSubmissionStatus = async (req, res) => {
 
         else if (status === "Rejected") {
           manuscript.editorRecommendation = "Recommend Rejection";
-        } else {
+        }
+        else {
           manuscript.editorRecommendation = "Recommend Revision";
         }
 
@@ -388,7 +405,7 @@ export const updateSubmissionStatus = async (req, res) => {
     }
     if (userRole === "masterAdmin") {
 
-      if (status === "Accepted" || status === "Published") {
+      if (["Accepted", "Published", "Approved"].includes(status)) {
         const acceptRecommendationsCount = await Review.countDocuments({
           manuscriptId: manuscriptId,
           reviewStatus: "Completed",
@@ -431,16 +448,37 @@ export const updateSubmissionStatus = async (req, res) => {
             ? [{ filename: "Revision-Document.pdf", path: file }]
             : [],
         }).catch(err => console.error("EMAIL ERROR:", err))
-      } else if (status === "Accepted") {
+      }
+
+      else if (status === "Approved") {
+        manuscript.status = "Approved";
+        manuscript.acceptedAt = new Date();
+      }
+
+      else if (status === "Accepted") {
         if (!publishDate) return res.status(400).json({ success: false, message: "Publish date required" });
         manuscript.status = "Accepted";
         manuscript.acceptedAt = new Date();
         manuscript.publishDate = new Date(publishDate);
       } else if (status === "Published") {
+
+        if (!["Accepted", "Approved"].includes(manuscript.status)) {
+          return res.status(400).json({
+            success: false,
+            message: "Only approved/accepted manuscripts can be published",
+          });
+        }
+
         manuscript.status = "Published";
         manuscript.publishedAt = new Date();
-        const { volume, issue, issueLabel } = getVolumeIssue(manuscript.publishDate || new Date());
-        const { paperSequence, paperNumber } = await generatePaperNumber(volume, issue);
+
+        const { volume, issue, issueLabel } = getVolumeIssue(
+          manuscript.publishDate || new Date()
+        );
+
+        const { paperSequence, paperNumber } =
+          await generatePaperNumber(volume, issue);
+
         manuscript.volume = volume;
         manuscript.issue = issue;
         manuscript.issueLabel = issueLabel;
@@ -456,11 +494,29 @@ export const updateSubmissionStatus = async (req, res) => {
       if (status === "Rejected") {
         const html = buildRejectionEmail(researcher.name, manuscript.manuscriptId, feedback);
         sendEmail({ email: researcher.email, subject: "Manuscript Update", html });
-      } else if (status === "Accepted") {
-        const html = buildAcceptanceEmail(researcher.name, manuscript.manuscriptId, manuscript.publishDate);
-        sendEmail({ email: researcher.email, subject: "Manuscript Accepted", html });
+      } else if (status === "Accepted" || status === "Approved") {
+        const html = buildAcceptanceEmail(
+          researcher.name,
+          manuscript.manuscriptId,
+          status === "Accepted" ? manuscript.publishDate : null
+        );
+
+        sendEmail({
+          email: researcher.email,
+          subject: "Manuscript Accepted",
+          html
+        });
       } else if (status === "Published") {
-        const html = buildPublishedEmail(researcher.name, manuscript.manuscriptId, manuscript.publishedAt);
+        const html = buildPublishedEmail(
+          researcher.name,
+          manuscript.manuscriptId,
+          manuscript.publishedAt,
+          manuscript.volume,
+          manuscript.issue,
+          manuscript.issueLabel,
+          manuscript.paperNumber,
+          manuscript.paperSequence
+        );
         sendEmail({ email: researcher.email, subject: "Manuscript Published", html });
       }
 
@@ -484,7 +540,17 @@ export const updateSubmissionStatus = async (req, res) => {
 export const assignReviewers = async (req, res) => {
   try {
     const { manuscriptId, reviewerIds } = req.body;
-    if (!reviewerIds || reviewerIds.length < 2) {
+
+    // Check status before assigning
+    const manuscriptCheck = await Manuscript.findById(manuscriptId);
+    if (["Published", "Rejected"].includes(manuscriptCheck.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Action Denied: This manuscript has already been ${manuscriptCheck.status} and cannot be assigned to reviewers.`
+      });
+    }
+
+    if (!reviewerIds || reviewerIds.length < 0) {
       return res.status(400).json({
         success: false,
         message: "Minimum 2 reviewers are required",
@@ -737,7 +803,7 @@ export const getPublishedArticles = async (req, res) => {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
         { keywords: { $regex: search, $options: "i" } },
-        { abstract: { $regex: search, $options: "i" } }, // optional
+        { abstract: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -837,7 +903,7 @@ export const deleteManuscriptByAdmin = async (req, res) => {
     // Delete from Database
     await Manuscript.findByIdAndDelete(id);
 
-    await Review.deleteMany({manuscriptId: id});
+    await Review.deleteMany({ manuscriptId: id });
 
     res.status(200).json({
       success: true,

@@ -1,11 +1,22 @@
 import mongoose from "mongoose";
 import Review from "./review.model.js";
 import User from "../user/user.model.js";
+import Manuscript from "../manuscript/manuscript.model.js";
 // 1. Get all assigned papers for logged-in reviewer
 export const getMyAssignments = async (req, res) => {
   try {
     const reviews = await Review.find({ reviewerId: req.user._id })
-      .populate("manuscriptId", "manuscriptId title abstract status keywords")
+      .populate("manuscriptId", `
+  manuscriptId 
+  title 
+  abstract 
+  status 
+  keywords 
+  discipline 
+  manuscriptType 
+  authors 
+  files
+`)
       .sort({ createdAt: -1 });
 
     res.status(200).json({ success: true, reviews });
@@ -56,7 +67,7 @@ export const submitReview = async (req, res) => {
     review.commentsToEditor = commentsToEditor;
     review.recommendation = recommendation;
     review.reviewStatus = "Completed";
-    
+
     if (req.file) {
       review.annotatedFile = req.file.path;
     }
@@ -89,7 +100,8 @@ export const getAllReviewTracking = async (req, res) => {
               title: "$manuscript.title",
               status: "$manuscript.status",
               editorRecommendation: "$manuscript.editorRecommendation",
-              editorInternalComments: "$manuscript.editorInternalComments"
+              editorInternalComments: "$manuscript.editorInternalComments",
+              feedbackFile:"$manuscript.feedbackFile" 
             }
           },
           reviewers: {
@@ -113,13 +125,38 @@ export const getAllReviewTracking = async (req, res) => {
       { $sort: { "manuscript.manuscriptId": -1 } }
     ]);
 
-    res.status(200).json({ success: true, reviews });
+
+
+    const manuscriptsWithoutReviews = await Manuscript.find({
+      status: "Awaiting Admin Decision",
+    })
+      .select("_id manuscriptId title status editorRecommendation editorInternalComments feedbackFile")
+      .lean();
+
+    // 3. Find which manuscripts already exist
+    const existingIds = new Set(reviews.map(r => r.manuscript._id.toString()));
+
+    // 4. Filter missing ones
+    const missingManuscripts = manuscriptsWithoutReviews
+      .filter(m => !existingIds.has(m._id.toString()))
+      .map(m => ({
+        _id: m._id,
+        manuscript: m,
+        reviewers: [] // empty reviewers
+      }));
+
+    // 5. Merge both
+    const finalData = [...reviews, ...missingManuscripts];
+
+    // 6. Final response
+    res.status(200).json({
+      success: true,
+      reviews: finalData
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };
-
-
 
 // Admin: get eligible reviewers for a manuscript
 export const getEligibleReviewersForManuscript = async (req, res) => {

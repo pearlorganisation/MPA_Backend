@@ -14,13 +14,13 @@ const reviewSchema = new mongoose.Schema(
     },
     invitationStatus: {
       type: String,
-      enum:["Pending", "Accepted", "Declined"],
-      default: "Pending", 
+      enum: ["Pending", "Accepted", "Declined"],
+      default: "Pending",
     },
     reviewStatus: {
       type: String,
       enum: ["Pending", "Completed"],
-      default: "Pending", 
+      default: "Pending",
     },
     scores: {
       originality: { type: Number, min: 1, max: 5 },
@@ -29,16 +29,16 @@ const reviewSchema = new mongoose.Schema(
       contribution: { type: Number, min: 1, max: 5 },
     },
     commentsToAuthor: { type: String, default: "" },
-    commentsToEditor: { type: String, default: "" }, 
-    annotatedFile: { type: String, default: null }, 
+    commentsToEditor: { type: String, default: "" },
+    annotatedFile: { type: String, default: null },
     recommendation: {
       type: String,
-      enum:["Accept", "Minor revisions", "Major revisions", "Reject", null],
+      enum: ["Accept", "Minor revisions", "Major revisions", "Reject", null],
       default: null,
     },
-    
+
     // NEW: Save previous round's data when Re-reviewing
-    history:[
+    history: [
       {
         scores: Object,
         commentsToAuthor: String,

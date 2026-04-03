@@ -96,23 +96,36 @@ export const buildRevisionEmail = (researcherName, manuscriptId, feedback, revis
 
 // 🟢 3. Acceptance Email Template
 export const buildAcceptanceEmail = (researcherName, manuscriptId, publishDate) => {
-  const formattedDate = new Date(publishDate).toLocaleString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const formattedDate = publishDate
+    ? new Date(publishDate).toLocaleString("en-US", {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+    : null;
   const content = `
     <h2 style="color: #16a34a; font-size: 22px; margin-top: 0;"> Manuscript Accepted!</h2>
     <p style="font-size: 16px; line-height: 1.6;">Dear <b>${researcherName}</b>,</p>
     <p style="font-size: 16px; line-height: 1.6;">We are extremely thrilled to inform you that your manuscript <b>${manuscriptId}</b> has successfully passed the peer-review process and is formally <b>Accepted</b> for publication.</p>
     
-    <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 25px; margin: 25px 0; border-radius: 8px; text-align: center;">
-      <p style="margin: 0; font-size: 15px; color: #166534; font-weight: 500;">Your manuscript is scheduled to be published on:</p>
-      <p style="margin: 10px 0 0 0; font-size: 20px; color: #15803d; font-weight: 700;">📅 ${formattedDate}</p>
-    </div>
+${formattedDate ? `
+  <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 25px; margin: 25px 0; border-radius: 8px; text-align: center;">
+    <p style="margin: 0; font-size: 15px; color: #166534; font-weight: 500;">
+      Your manuscript is scheduled to be published on:
+    </p>
+    <p style="margin: 10px 0 0 0; font-size: 20px; color: #15803d; font-weight: 700;">
+      ${formattedDate}
+    </p>
+  </div>
+` : ''}
     <p style="font-size: 16px; line-height: 1.6;">Thank you for your excellent contribution to the academic community through MPA Research.</p>
   `;
   return baseEmailTemplate("Manuscript Accepted", content, "#16a34a"); // Green
 };
 
 // 🔵 4. Published Email Template (Used by Cron Job & Direct Publish)
-export const buildPublishedEmail = (researcherName, manuscriptId, publishedAt) => {
+export const buildPublishedEmail = (researcherName, manuscriptId, publishedAt, volume, issue, issueLabel, paperNumber, paperSequence) => {
   const formattedDate = new Date(publishedAt).toLocaleString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const content = `
     <h2 style="color: #4f46e5; font-size: 22px; margin-top: 0;"> Manuscript Published Online!</h2>
@@ -124,6 +137,14 @@ export const buildPublishedEmail = (researcherName, manuscriptId, publishedAt) =
         <td style="padding: 20px;">
           <p style="margin: 0 0 10px 0; font-size: 16px; color: #3730a3;"><b>Manuscript ID:</b> <span style="color: #312e81; font-weight: 700;">${manuscriptId}</span></p>
           <p style="margin: 0; font-size: 16px; color: #3730a3;"><b>Date of Publication:</b> ${formattedDate}</p>
+          <div style="background-color: #f0f9ff; border-left: 5px solid #0284c7; margin: 25px 0; border-radius: 6px;">
+          <div style="padding: 20px;">
+            <p style="margin: 5px 0;"><b>Volume:</b> ${volume}</p>
+            <p style="margin: 5px 0;"><b>Issue:</b> ${issue} (${issueLabel})</p>
+            <p style="margin: 5px 0;"><b>Paper Number:</b> ${paperNumber}</p>
+            <p style="margin: 5px 0;"><b>Sequence:</b> ${paperSequence}</p>
+          </div>
+        </div>
         </td>
       </tr>
     </table>
