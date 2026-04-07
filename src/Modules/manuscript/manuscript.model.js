@@ -64,7 +64,7 @@ const manuscriptSchema = new mongoose.Schema(
         "Review Article",
         "Mini Review",
         "Systematic Review",
-        "Research Article", 
+        "Research Article",
         "Short Communication",
         "Case Report",
         "Editorial"
@@ -105,6 +105,7 @@ const manuscriptSchema = new mongoose.Schema(
       figures: { type: String, default: null },
       tables: { type: String, default: null },
       reviewChecklist: { type: String, default: null },
+      manuscriptImage: { type: String, default: null },
     },
 
     status: {
@@ -219,6 +220,15 @@ const manuscriptSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    views: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+    isEditorChoice: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
@@ -228,6 +238,8 @@ manuscriptSchema.index({ volume: 1, issue: 1 });
 
 // Important compound index for publish cron performance
 manuscriptSchema.index({ status: 1, publishDate: 1, publishedAt: 1 });
+
+manuscriptSchema.index({ views: -1 });
 
 const Manuscript = mongoose.model("Manuscript", manuscriptSchema);
 

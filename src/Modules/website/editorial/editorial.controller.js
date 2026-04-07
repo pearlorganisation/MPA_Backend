@@ -1,10 +1,11 @@
+import { deleteFromCloudinary } from "../../../utils/cloudinaryHelper.js";
 import Editorial from "./editorial.model.js";
 
 /* ================= CREATE ================= */
 export const createEditorial = async (req, res) => {
   try {
     console.log("BODY:", req.body);
-    console.log("Images Detail is Here :-  ",req.file);
+    console.log("Images Detail is Here :-  ", req.file);
 
     const editorial = await Editorial.create({
       type: req.body.type,
@@ -78,7 +79,7 @@ export const updateEditorial = async (req, res) => {
       req.params.id,
       updateData,
       // runValidators: true add kiya hai taaki model ke required validation rules update par bhi kaam karein
-      { new: true, runValidators: true } 
+      { new: true, runValidators: true }
     );
 
     res.json({ success: true, data });
@@ -93,11 +94,26 @@ export const updateEditorial = async (req, res) => {
 /* ================= DELETE ================= */
 export const deleteEditorial = async (req, res) => {
   try {
-    await Editorial.findByIdAndDelete(req.params.id);
+    const editorial = await Editorial.findById(req.params.id);
+
+    if (!editorial) {
+      return res.status(404).json({
+        success: false,
+        message: "Editorial not found",
+      });
+    }
+
+    // Cloudinary delete
+    if (editorial.image) {
+      await deleteFromCloudinary(editorial.image);
+    }
+
+    //  DB delete
+    await editorial.deleteOne();
 
     res.json({
       success: true,
-      message: "Deleted successfully",
+      message: "Deleted successfully (Cloudinary + DB)",
     });
   } catch (error) {
     res.status(500).json({

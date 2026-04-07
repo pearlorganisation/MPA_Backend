@@ -159,6 +159,9 @@ export const submitManuscript = async (req, res) => {
         manuscriptFile: req.files?.manuscriptFile
           ? req.files.manuscriptFile[0].path
           : null,
+        manuscriptImage: req.files?.manuscriptImage
+          ? req.files.manuscriptImage[0].path
+          : null,
         ethicalDeclaration: req.files?.ethicalDeclaration
           ? req.files.ethicalDeclaration[0].path
           : null,
@@ -686,6 +689,12 @@ export const getManuscriptById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Manuscript not found" });
     }
 
+    //For views
+    if (manuscript.status === "Published") {
+      manuscript.views += 1;
+      await manuscript.save();
+    }
+
     // Logic: If it's published, anyone can see it. 
     // If not published, only the owner or admins can see it.
     if (manuscript.status !== "Published") {
@@ -774,48 +783,96 @@ export const reviseManuscript = async (req, res) => {
 };
 
 
-// Get only published articles for the public website
-// export const getPublishedArticles = async (req, res) => {
-//   try {
-//     const articles = await Manuscript.find({ status: "Published" })
-//       .populate("submittedBy", "name affiliation") // Optional: include author info
-//       .sort({ publishedAt: -1 });
-
-//     res.status(200).json({
-//       success: true,
-//       count: articles.length,
-//       articles,
-//     });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
-
-
+//Get Publish Article For Website
 export const getPublishedArticles = async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, discipline, page = 1, limit = 10, type, year } = req.query;
+    const skip = (page - 1) * limit;
 
+    // 1. Logic for specialized sections (Home Page)
+    if (type === "homepage") {
+      const editorChoice = await Manuscript.find({ status: "Published", isEditorChoice: true })
+        .limit(3)
+        .sort({ publishedAt: -1 });
+
+      const currentIssue = await Manuscript.find({ status: "Published" })
+        .limit(6)
+        .sort({ publishedAt: -1 });
+
+      const mostViewed = await Manuscript.find({ status: "Published" })
+        .limit(5)
+        .sort({ views: -1 });
+
+      return res.status(200).json({
+        success: true,
+        data: { editorChoice, currentIssue, mostViewed }
+      });
+    }
+
+    // 2. Logic for "View All" / Search / Filter
     let query = { status: "Published" };
 
-    //  Add search condition if search exists
     if (search) {
       query.$or = [
         { title: { $regex: search, $options: "i" } },
         { keywords: { $regex: search, $options: "i" } },
         { abstract: { $regex: search, $options: "i" } },
+        { "authors.name": { $regex: search, $options: "i" } }
       ];
     }
 
+    if (year) {
+      query.publishedAt = {
+        $gte: new Date(`${year}-01-01`),
+        $lte: new Date(`${year}-12-31`)
+      };
+    }
+
+    if (discipline) {
+      query.discipline = discipline;
+    }
+
+    const total = await Manuscript.countDocuments(query);
     const articles = await Manuscript.find(query)
-      .populate("submittedBy", "name affiliation")
-      .sort({ publishedAt: -1 });
+      .sort({ publishedAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
     res.status(200).json({
       success: true,
-      count: articles.length,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / limit),
       articles,
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getPublishedYears = async (req, res) => {
+  try {
+    const years = await Manuscript.aggregate([
+      {
+        $match: { status: "Published", publishedAt: { $ne: null } }
+      },
+      {
+        $group: {
+          _id: { $year: "$publishedAt" }
+        }
+      },
+      {
+        $sort: { _id: -1 }
+      }
+    ]);
+
+    const formattedYears = years.map(y => y._id);
+
+    res.status(200).json({
+      success: true,
+      years: formattedYears
+    });
+
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -911,6 +968,71 @@ export const deleteManuscriptByAdmin = async (req, res) => {
     });
   } catch (error) {
     console.error("ADMIN DELETE ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+// toggleEditorChoice
+export const toggleEditorChoice = async (req, res) => {
+  try {
+    const manuscript = await Manuscript.findById(req.params.id);
+
+    if (!manuscript) {
+      return res.status(404).json({
+        success: false,
+        message: "Manuscript not found",
+      });
+    }
+
+    if (manuscript.status !== "Published") {
+      return res.status(400).json({
+        success: false,
+        message: "Only published manuscripts allowed",
+      });
+    }
+
+    // Optional limit (max 3)
+    if (!manuscript.isEditorChoice) {
+      const count = await Manuscript.countDocuments({
+        isEditorChoice: true,
+        status: "Published",
+      });
+
+      if (count >= 3) {
+        return res.status(400).json({
+          success: false,
+          message: "Max 3 Editor Choice allowed",
+        });
+      }
+    }
+
+    manuscript.isEditorChoice = !manuscript.isEditorChoice;
+
+    await manuscript.save();
+
+    res.status(200).json({
+      success: true,
+      manuscript,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+export const getLatestPublished = async (req, res) => {
+  try {
+    const article = await Manuscript.findOne({
+      status: "Published",
+      publishedAt: { $ne: null }
+    })
+      .sort({ publishedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      article,
+    });
+  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };

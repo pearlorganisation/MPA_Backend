@@ -21,34 +21,33 @@ const storage = new CloudinaryStorage({
         ? originalName.substring(0, lastDotIndex)
         : originalName;
 
-    const ext = originalName.split(".").pop(); // ✅ EXTENSION nikal
+    const ext = originalName.split(".").pop();
 
     return {
       folder: "journal_manuscripts",
       resource_type: file.mimetype.startsWith("image/")
         ? "image"
         : "raw",
-      public_id: `${nameWithoutExt}-${Date.now()}.${ext}`, // ✅ EXTENSION add
+      public_id: `${nameWithoutExt}-${Date.now()}.${ext}`,
     };
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.oasis.opendocument.text",
-    "image/jpeg",
-    "image/png",
-  ];
+  const isImage = file.mimetype.startsWith("image/");
 
-  if (allowedTypes.includes(file.mimetype)) {
+  const isDoc =
+    file.mimetype === "application/pdf" ||
+    file.mimetype === "application/msword" ||
+    file.mimetype ===
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+  if (isImage || isDoc) {
     cb(null, true);
   } else {
     cb(
-      new Error("Invalid file type. Only PDF, DOC, DOCX, JPG, PNG allowed!"),
-      false,
+      new Error("Only images (JPG, PNG, WEBP, etc.) or documents allowed"),
+      false
     );
   }
 };
