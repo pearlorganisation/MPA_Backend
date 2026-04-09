@@ -27,7 +27,7 @@ const storage = new CloudinaryStorage({
       folder: "journal_manuscripts",
       resource_type: file.mimetype.startsWith("image/")
         ? "image"
-        : "raw",
+        : "auto",
       public_id: `${nameWithoutExt}-${Date.now()}.${ext}`,
     };
   },
