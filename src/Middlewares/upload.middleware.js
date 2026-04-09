@@ -28,7 +28,7 @@ const storage = new CloudinaryStorage({
       resource_type: file.mimetype.startsWith("image/")
         ? "image"
         : "auto",
-      public_id: `${nameWithoutExt}-${Date.now()}.${ext}`,
+      public_id: `${nameWithoutExt}-${Date.now()}`,
     };
   },
 });
