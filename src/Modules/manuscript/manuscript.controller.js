@@ -167,7 +167,9 @@ export const submitManuscript = async (req, res) => {
           : null,
         aiReport: req.files?.aiReport ? req.files.aiReport[0].path : null,
         tables: req.files?.tables ? req.files.tables[0].path : null,
-        figures: req.files?.figures ? req.files.figures[0].path : null,
+        figures: req.files?.figures
+          ? req.files.figures.map(file => file.path)
+          : [],
         coverLetter: req.files?.coverLetter
           ? req.files.coverLetter[0].path
           : null,
@@ -510,6 +512,7 @@ export const updateSubmissionStatus = async (req, res) => {
           html
         });
       } else if (status === "Published") {
+        const articleUrl = `${process.env.FRONTEND_URL}/articles/${manuscript._id}`;
         const html = buildPublishedEmail(
           researcher.name,
           manuscript.manuscriptId,
@@ -518,7 +521,8 @@ export const updateSubmissionStatus = async (req, res) => {
           manuscript.issue,
           manuscript.issueLabel,
           manuscript.paperNumber,
-          manuscript.paperSequence
+          articleUrl,
+
         );
         sendEmail({ email: researcher.email, subject: "Manuscript Published", html });
       }

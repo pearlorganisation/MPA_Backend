@@ -102,7 +102,7 @@ const manuscriptSchema = new mongoose.Schema(
       coverLetter: { type: String, default: null },
       ethicalDeclaration: { type: String, default: null },
       aiReport: { type: String, default: null },
-      figures: { type: String, default: null },
+      figures: [{ type: String }],
       tables: { type: String, default: null },
       reviewChecklist: { type: String, default: null },
       manuscriptImage: { type: String, default: null },

@@ -125,7 +125,7 @@ ${formattedDate ? `
 };
 
 // 🔵 4. Published Email Template (Used by Cron Job & Direct Publish)
-export const buildPublishedEmail = (researcherName, manuscriptId, publishedAt, volume, issue, issueLabel, paperNumber, paperSequence) => {
+export const buildPublishedEmail = (researcherName, manuscriptId, publishedAt, volume, issue, issueLabel, paperNumber, articleUrl) => {
   const formattedDate = new Date(publishedAt).toLocaleString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const content = `
     <h2 style="color: #4f46e5; font-size: 22px; margin-top: 0;"> Manuscript Published Online!</h2>
@@ -142,13 +142,28 @@ export const buildPublishedEmail = (researcherName, manuscriptId, publishedAt, v
             <p style="margin: 5px 0;"><b>Volume:</b> ${volume}</p>
             <p style="margin: 5px 0;"><b>Issue:</b> ${issue} (${issueLabel})</p>
             <p style="margin: 5px 0;"><b>Paper Number:</b> ${paperNumber}</p>
-            <p style="margin: 5px 0;"><b>Sequence:</b> ${paperSequence}</p>
           </div>
         </div>
         </td>
       </tr>
     </table>
     <p style="font-size: 16px; line-height: 1.6;">Your research is now available to the global academic community. Thank you for choosing our platform.</p>
+    <div style="text-align: center; margin: 35px 0;">
+  <a href="${articleUrl}" 
+     style="
+       background-color: #4f46e5;
+       color: #ffffff;
+       padding: 14px 28px;
+       text-decoration: none;
+       border-radius: 6px;
+       font-weight: 600;
+       font-size: 16px;
+       display: inline-block;
+       box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+     ">
+     🔗 View Your Published Paper
+  </a>
+</div>
   `;
   return baseEmailTemplate("Manuscript Published", content, "#4f46e5"); // Indigo
 };

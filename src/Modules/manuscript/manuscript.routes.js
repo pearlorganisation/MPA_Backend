@@ -9,7 +9,7 @@ const router = express.Router();
 router.post("/submit", protect, upload.fields([
   { name: 'manuscriptFile', maxCount: 1 },
   { name: 'coverLetter', maxCount: 1 },
-  { name: 'figures', maxCount: 1 },
+  { name: 'figures', maxCount: 10 },
   { name: 'tables', maxCount: 1 },
   { name: 'ethicalDeclaration', maxCount: 1 },
   { name: 'aiReport', maxCount: 1 },
@@ -53,7 +53,7 @@ router.get(
 router.put("/revise/:id", protect, upload.fields([
   { name: 'manuscriptFile', maxCount: 1 },
   { name: 'coverLetter', maxCount: 1 },
-  { name: 'figures', maxCount: 1 },
+  { name: 'figures', maxCount: 10 },
   { name: 'tables', maxCount: 1 },
   { name: 'ethicalDeclaration', maxCount: 1 },
   { name: 'reviewChecklist', maxCount: 1 },
