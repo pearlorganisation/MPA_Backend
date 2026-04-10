@@ -229,6 +229,18 @@ const manuscriptSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    scanId: String,
+
+    plagiarismScore: {
+      type: Number,
+      default: 0,
+    },
+
+    plagiarismStatus: {
+      type: String,
+      enum: ["pending", "completed"],
+      default: "pending",
+    },
   },
   { timestamps: true }
 );

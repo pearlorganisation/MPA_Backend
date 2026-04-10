@@ -4,6 +4,7 @@ import Review from "../review/review.model.js";
 import User from "../user/user.model.js";
 import { deleteFromCloudinary } from "../../utils/cloudinaryHelper.js";
 import { buildEditorAssignmentEmail } from "../../utils/emailTemplates.js";
+import { submitUrlToCopyleaks } from "../../utils/copyleaksService.js";
 import {
   buildRejectionEmail,
   buildRevisionEmail,
@@ -62,6 +63,10 @@ const generatePaperNumber = async (volume, issue) => {
 
 // Submit new manuscript
 export const submitManuscript = async (req, res) => {
+
+  console.log("HEADERS:", req.headers);
+  console.log("BODY:", req.body);
+  console.log("FILES:", req.files);
   try {
     // Check required main file
     if (!req.files?.manuscriptFile) {
@@ -134,7 +139,13 @@ export const submitManuscript = async (req, res) => {
       });
     }
     // Validate required fields
-    if (!title || !abstract || !authors || !discipline || !manuscriptType) {
+    if (
+      !req.body.title ||
+      !req.body.abstract ||
+      !req.body.authors ||
+      !req.body.discipline ||
+      !req.body.manuscriptType
+    ) {
       return res.status(400).json({
         success: false,
         message: "Required fields missing",
@@ -144,6 +155,16 @@ export const submitManuscript = async (req, res) => {
     // Generate manuscript id
     const count = await Manuscript.countDocuments();
     const mId = `MPA-${new Date().getFullYear()}-${1000 + count + 1}`;
+
+    //  manuscript file URL (Cloudinary se)
+    const manuscriptUrl =
+      req.files?.manuscriptFile?.[0]?.path || null;
+
+    //  Copyleaks call
+    let scanId = null;
+    if (manuscriptUrl) {
+      scanId = await submitUrlToCopyleaks(manuscriptUrl);
+    }
 
     // Create manuscript
     const newManuscript = await Manuscript.create({
@@ -155,6 +176,8 @@ export const submitManuscript = async (req, res) => {
       keywords: keywords ? keywords.split(",") : [],
       authors: parsedAuthors,
       submittedBy: req.user._id,
+      scanId: scanId,
+      plagiarismStatus: "pending",
       files: {
         manuscriptFile: req.files?.manuscriptFile
           ? req.files.manuscriptFile[0].path
@@ -198,6 +221,7 @@ export const submitManuscript = async (req, res) => {
       message: "Manuscript Submitted",
       manuscriptId: mId,
       manuscript: newManuscript,
+      scanId: scanId,
     });
   } catch (error) {
     console.error("FULL ERROR:", error);

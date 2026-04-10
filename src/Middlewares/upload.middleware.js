@@ -21,13 +21,9 @@ const storage = new CloudinaryStorage({
         ? originalName.substring(0, lastDotIndex)
         : originalName;
 
-    const ext = originalName.split(".").pop();
-
     return {
       folder: "journal_manuscripts",
-      resource_type: file.mimetype.startsWith("image/")
-        ? "image"
-        : "auto",
+      resource_type: "raw",
       public_id: `${nameWithoutExt}-${Date.now()}`,
     };
   },
