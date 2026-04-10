@@ -4,32 +4,35 @@ import Manuscript from "../manuscript/manuscript.model.js";
 const router = express.Router();
 
 router.post("/webhook/:status", async (req, res) => {
-    try {
-        const status = req.params.status;
-        const scanId = req.body.scanId;
+  try {
+    const status = req.params.status;
 
-        console.log("Webhook:", status);
-        console.log("FULL BODY:", req.body);
+    // ✅ FIX 1: correct scanId
+    const scanId = req.body?.scannedDocument?.scanId;
 
-        if (!scanId) return res.send("No scanId");
+    console.log("Webhook:", status);
+    console.log("FULL BODY:", req.body);
 
-        if (status === "completed") {
-            const score = req.body.results?.internet?.percent || 0;
+    if (!scanId) return res.send("No scanId");
 
-            await Manuscript.findOneAndUpdate(
-                { scanId },
-                {
-                    plagiarismScore: score,
-                    plagiarismStatus: "completed",
-                }
-            );
+    if (status === "completed") {
+      // ✅ FIX 2: correct score
+      const score = req.body.results?.score?.aggregatedScore || 0;
+
+      await Manuscript.findOneAndUpdate(
+        { scanId },
+        {
+          plagiarismScore: score,
+          plagiarismStatus: "completed",
         }
-
-        res.send("OK");
-    } catch (err) {
-        console.error(err);
-        res.send("Error");
+      );
     }
+
+    res.send("OK");
+  } catch (err) {
+    console.error(err);
+    res.send("Error");
+  }
 });
 
 export default router;
