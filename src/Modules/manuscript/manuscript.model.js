@@ -98,13 +98,31 @@ const manuscriptSchema = new mongoose.Schema(
     },
 
     files: {
-      manuscriptFile: { type: String, default: null },
-      coverLetter: { type: String, default: null },
-      ethicalDeclaration: { type: String, default: null },
-      aiReport: { type: String, default: null },
+      manuscriptFile: {
+        url: { type: String },
+        publicId: { type: String },
+      },
+      coverLetter: {
+        url: { type: String },
+        publicId: { type: String },
+      },
+      ethicalDeclaration: {
+        url: { type: String },
+        publicId: { type: String },
+      },
+      aiReport: {
+        url: { type: String },
+        publicId: { type: String },
+      },
       figures: [{ type: String }],
-      tables: { type: String, default: null },
-      reviewChecklist: { type: String, default: null },
+      tables: {
+        url: { type: String },
+        publicId: { type: String },
+      },
+      reviewChecklist: {
+        url: { type: String },
+        publicId: { type: String },
+      },
       manuscriptImage: { type: String, default: null },
     },
 

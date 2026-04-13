@@ -180,21 +180,49 @@ export const submitManuscript = async (req, res) => {
       plagiarismStatus: "pending",
       files: {
         manuscriptFile: req.files?.manuscriptFile
-          ? req.files.manuscriptFile[0].path
+          ? {
+            url: req.files.manuscriptFile[0].path,
+            publicId: req.files.manuscriptFile[0].filename,
+          }
           : null,
+
+        coverLetter: req.files?.coverLetter
+          ? {
+            url: req.files.coverLetter[0].path,
+            publicId: req.files.coverLetter[0].filename,
+          }
+          : null,
+
+        ethicalDeclaration: req.files?.ethicalDeclaration
+          ? {
+            url: req.files.ethicalDeclaration[0].path,
+            publicId: req.files.ethicalDeclaration[0].filename,
+          }
+          : null,
+
+        aiReport: req.files?.aiReport
+          ? {
+            url: req.files.aiReport[0].path,
+            publicId: req.files.aiReport[0].filename,
+          }
+          : null,
+
+        tables: req.files?.tables
+          ? {
+            url: req.files.tables[0].path,
+            publicId: req.files.tables[0].filename,
+          }
+          : null,
+
+        figures: req.files?.figures
+          ? req.files.figures.map(file => ({
+            url: file.path,
+            publicId: file.filename,
+          }))
+          : [],
+
         manuscriptImage: req.files?.manuscriptImage
           ? req.files.manuscriptImage[0].path
-          : null,
-        ethicalDeclaration: req.files?.ethicalDeclaration
-          ? req.files.ethicalDeclaration[0].path
-          : null,
-        aiReport: req.files?.aiReport ? req.files.aiReport[0].path : null,
-        tables: req.files?.tables ? req.files.tables[0].path : null,
-        figures: req.files?.figures
-          ? req.files.figures.map(file => file.path)
-          : [],
-        coverLetter: req.files?.coverLetter
-          ? req.files.coverLetter[0].path
           : null,
       },
     });
@@ -763,7 +791,10 @@ export const reviseManuscript = async (req, res) => {
     // Update uploaded files if present
     if (req.files) {
       if (req.files.manuscriptFile) {
-        manuscript.files.manuscriptFile = req.files.manuscriptFile[0].path;
+        manuscript.files.manuscriptFile = {
+          url: req.files.manuscriptFile[0].path,
+          publicId: req.files.manuscriptFile[0].filename,
+        };
       }
 
       if (req.files.coverLetter) {
@@ -938,9 +969,14 @@ export const editManuscriptByAdmin = async (req, res) => {
       for (const field of fileFields) {
         if (req.files[field]) {
           // Delete old file from Cloudinary
-          if (updatedFiles[field]) await deleteFromCloudinary(updatedFiles[field]);
-          // Set new file path
-          updatedFiles[field] = req.files[field][0].path;
+          if (updatedFiles[field]?.publicId) {
+            await deleteFromCloudinary(updatedFiles[field].publicId);
+          }
+
+          updatedFiles[field] = {
+            url: req.files[field][0].path,
+            publicId: req.files[field][0].filename,
+          };
         }
       }
     }
@@ -981,7 +1017,11 @@ export const deleteManuscriptByAdmin = async (req, res) => {
     const fileFields = ["manuscriptFile", "ethicalDeclaration", "aiReport", "tables", "figures", "coverLetter"];
     for (const field of fileFields) {
       if (manuscript.files[field]) {
-        await deleteFromCloudinary(manuscript.files[field]);
+        const file = manuscript.files[field];
+
+        if (file?.publicId) {
+          await deleteFromCloudinary(file.publicId, "raw");
+        }
       }
     }
 

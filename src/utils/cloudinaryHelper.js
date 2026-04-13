@@ -7,26 +7,27 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-export const deleteFromCloudinary = async (fileUrl) => {
-  if (!fileUrl) return;
+export const deleteFromCloudinary = async (publicId, resourceType = "raw") => {
+  if (!publicId) {
+    console.log("❌ No publicId provided");
+    return;
+  }
 
   try {
-    const urlParts = fileUrl.split("/upload/");
-    
-    if (urlParts.length > 1) {
+    console.log("🧨 Deleting:", publicId);
 
-      const pathParts = urlParts[1].split("/");
-      pathParts.shift(); 
-      const publicId = pathParts.join("/"); 
-      let resourceType = "raw";
-      if (fileUrl.match(/\.(jpg|jpeg|png|webp|gif)$/i)) {
-        resourceType = "image";
-      }
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType,
+    });
 
-      await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
-      console.log(`✅ File deleted from Cloudinary: ${publicId}`);
+    console.log("Cloudinary Response:", result);
+
+    if (result.result === "ok") {
+      console.log("✅ Deleted:", publicId);
+    } else {
+      console.log("⚠️ Not deleted:", result);
     }
   } catch (error) {
-    console.error("❌ Cloudinary deletion error:", error);
+    console.error("❌ Delete error:", error);
   }
 };
