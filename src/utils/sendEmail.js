@@ -2,15 +2,16 @@ import nodemailer from "nodemailer";
 
 const sendEmail = async (options) => {
   const transporter = nodemailer.createTransport({
-    service: "Gmail",
+    host: "smtpout.secureserver.net",
+    port: 465,
+    secure: true,
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
   });
-
   const mailOptions = {
-    from: "Journal Portal <no-reply@journal.com>",
+    from: `MPA Research Editor <${process.env.EMAIL_USER}>`,
     to: options.email,
     subject: options.subject,
     text: options.message,

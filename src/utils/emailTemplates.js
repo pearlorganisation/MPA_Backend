@@ -161,7 +161,7 @@ export const buildPublishedEmail = (researcherName, manuscriptId, publishedAt, v
        display: inline-block;
        box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
      ">
-     🔗 View Your Published Paper
+      View Your Published Paper
   </a>
 </div>
   `;
@@ -205,7 +205,7 @@ export const buildReviewerReReviewEmail = (reviewerName, manuscriptTitle) => {
 // 🟢 7. New Submission Email Template (Admin Notification)
 export const buildNewSubmissionEmail = (adminName, manuscriptId, manuscriptTitle, authorName) => {
   const content = `
-    <h2 style="color: #0f766e; font-size: 22px; margin-top: 0;">New Manuscript Submitted 📝</h2>
+    <h2 style="color: #0f766e; font-size: 22px; margin-top: 0;">New Manuscript Submitted </h2>
     <p style="font-size: 16px; line-height: 1.6;">Dear <b>${adminName}</b>,</p>
     <p style="font-size: 16px; line-height: 1.6;">A new manuscript has just been submitted to the MPA Research Journal and is awaiting your initial editorial review.</p>
     
