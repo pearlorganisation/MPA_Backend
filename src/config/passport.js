@@ -4,6 +4,7 @@ console.log("CALLBACK URL:", process.env.GOOGLE_CALLBACK_URL);
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 
+
 if (!process.env.GOOGLE_CLIENT_ID) {
   console.log("❌ GOOGLE_CLIENT_ID is missing");
 }
