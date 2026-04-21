@@ -771,6 +771,7 @@ export const getManuscriptById = async (req, res) => {
 // Submit revised manuscript
 export const reviseManuscript = async (req, res) => {
   try {
+    // 1. Find the manuscript by its ID from the URL
     const manuscript = await Manuscript.findById(req.params.id);
 
     if (!manuscript) {
@@ -780,16 +781,17 @@ export const reviseManuscript = async (req, res) => {
       });
     }
 
-    // Only owner can revise manuscript
+    // 2. Security Check: Only the original owner can revise this manuscript
     if (manuscript.submittedBy.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: "Not authorized to edit",
+        message: "Not authorized to edit this manuscript",
       });
     }
 
-    // Update uploaded files if present
+    // 3. Update uploaded files if new ones are provided
     if (req.files) {
+      // Update Manuscript main file
       if (req.files.manuscriptFile) {
         manuscript.files.manuscriptFile = {
           url: req.files.manuscriptFile[0].path,
@@ -797,36 +799,63 @@ export const reviseManuscript = async (req, res) => {
         };
       }
 
+      // Update Cover Letter
       if (req.files.coverLetter) {
-        manuscript.files.coverLetter = req.files.coverLetter[0].path;
+        manuscript.files.coverLetter = {
+          url: req.files.coverLetter[0].path,
+          publicId: req.files.coverLetter[0].filename,
+        };
       }
 
+      // Update Ethical Declaration
       if (req.files.ethicalDeclaration) {
-        manuscript.files.ethicalDeclaration =
-          req.files.ethicalDeclaration[0].path;
+        manuscript.files.ethicalDeclaration = {
+          url: req.files.ethicalDeclaration[0].path,
+          publicId: req.files.ethicalDeclaration[0].filename,
+        };
       }
 
+      // Update AI Report
       if (req.files.aiReport) {
-        manuscript.files.aiReport = req.files.aiReport[0].path;
+        manuscript.files.aiReport = {
+          url: req.files.aiReport[0].path,
+          publicId: req.files.aiReport[0].filename,
+        };
       }
 
+      // Update Figures (this handles multiple files as an array of objects)
       if (req.files.figures) {
-        manuscript.files.figures = req.files.figures[0].path;
+        manuscript.files.figures = req.files.figures.map((file) => ({
+          url: file.path,
+          publicId: file.filename,
+        }));
       }
 
+      // Update Tables
       if (req.files.tables) {
-        manuscript.files.tables = req.files.tables[0].path;
+        manuscript.files.tables = {
+          url: req.files.tables[0].path,
+          publicId: req.files.tables[0].filename,
+        };
       }
+
+      // Update Review Checklist
       if (req.files.reviewChecklist) {
-        manuscript.files.reviewChecklist = req.files.reviewChecklist[0].path;
+        manuscript.files.reviewChecklist = {
+          url: req.files.reviewChecklist[0].path,
+          publicId: req.files.reviewChecklist[0].filename,
+        };
       }
     }
 
+    // 4. Reset status to "Submitted" and mark as revised
     manuscript.status = "Submitted";
     manuscript.isRevised = true;
 
+    // 5. Save all changes to the database
     await manuscript.save();
 
+    // 6. Send success response back to the user
     res.status(200).json({
       success: true,
       message: "Revision submitted successfully",

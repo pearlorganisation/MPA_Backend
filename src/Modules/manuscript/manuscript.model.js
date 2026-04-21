@@ -114,7 +114,12 @@ const manuscriptSchema = new mongoose.Schema(
         url: { type: String },
         publicId: { type: String },
       },
-      figures: [{ type: String }],
+      figures: [
+        {
+          url: { type: String },
+          publicId: { type: String },
+        }
+      ],
       tables: {
         url: { type: String },
         publicId: { type: String },
