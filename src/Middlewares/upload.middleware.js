@@ -103,8 +103,8 @@ const fileFilter = (req, file, cb) => {
   const isDoc =
     file.mimetype === "application/pdf" ||
     file.mimetype === "application/msword" ||
-    file.mimetype ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    file.mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    file.mimetype === "application/zip";
 
   if (isImage || isDoc) {
     cb(null, true);
