@@ -21,6 +21,9 @@ app.use(
       "https://mpa-admin-pannel.vercel.app",
       "http://localhost:3001",
       "https://mpa-frontend-dun.vercel.app",
+      "https://mparesearch.com",
+      "https://admin.mparesearch.com",
+      "https://www.mparesearch.com",
     ], // frontend URL
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
@@ -29,11 +32,8 @@ app.use(
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(morgan("dev"));
 
-// Logging
-if (process.env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
-}
 
 //Routes
 app.use("/api/v1/users", userRoutes);
